@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 // Removed sxd_document and sxd_xpath imports
-use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
+use async_nursery::{NurseExt, Nursery};
 use futures::StreamExt;
 // Removed html5ever and markup5ever_rcdom imports
 // Removed unused skyscraper::html import
@@ -33,7 +33,9 @@ struct XpathResult {
     unsuccessful: Vec<String>,
 }
 
-async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn process_input(
+    input: InputJson,
+) -> Result<HashMap<String, XpathResult>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let input = Arc::new(input);
     let mut output_results = HashMap::new();
     // Removed xpath_factory
@@ -52,70 +54,80 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                 let xpath_str_clone = xpath_str.clone();
                 // Removed factory_clone
 
-                        nursery.nurse(async move {
-                            let task_result: Result<bool, String> = (|| {
-                                // Parse XPath using skyscraper
-                                let xpath = xpath::parse(&xpath_str_clone) // Use simplified import
+                nursery
+                    .nurse(async move {
+                        let task_result: Result<bool, String> = (|| {
+                            // Parse XPath using skyscraper
+                            let xpath = xpath::parse(&xpath_str_clone) // Use simplified import
                                     .map_err(|e| format!("XPath parsing failed: {}", e))?;
 
-                                let url_data = input_arc_clone.urls.get(&url_string_clone)
-                                    .ok_or_else(|| "Internal error: URL data not found".to_string())?;
+                            let url_data = input_arc_clone
+                                .urls
+                                .get(&url_string_clone)
+                                .ok_or_else(|| "Internal error: URL data not found".to_string())?;
 
-                                let content_clone = url_data.content.clone();
+                            let content_clone = url_data.content.clone();
 
-                                // Check if target exists. If not, it's an automatic non-match.
-                                let maybe_expected_target = url_data.targets.get(&heading_clone);
-                                if maybe_expected_target.is_none() {
-                                    // No target specified, consider it a non-match for this URL/XPath pair
-                                    return Ok(false);
-                                }
-                                let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
-
-                                // Parse HTML using skyscraper
-                                let document = skyscraper::html::parse(&content_clone)
-                                    .map_err(|e| format!("HTML parsing failed: {}", e))?;
-
-                                // Create an item tree for XPath evaluation
-                                let xpath_item_tree = xpath::XpathItemTree::from(&document); // Use simplified import
-
-                                // Apply the XPath expression
-                                let item_set = xpath.apply(&xpath_item_tree)
-                                    .map_err(|e| format!("XPath evaluation failed: {}", e))?;
-
-                                // Extract text content from the result (assuming we want the first node's text)
-                                let actual_value: String = if item_set.is_empty() { // Explicitly type actual_value
-                                    "".to_string() // No match found
-                                } else {
-                                    // Attempt to get text from the first item in the set
-                                    // Trusting compiler error: assuming extract_as_tree_node returns &XpathItemTreeNode
-                                    item_set[0].extract_as_node() // Assuming &Node<'_> based on prior errors/attempts
-                                        .extract_as_tree_node() // Assuming &XpathItemTreeNode<'_> based on current error E0599
-                                        .text(&xpath_item_tree) // Returns Option<String>
-                                        .unwrap_or_default() // Returns String
-                                };
-
-                                // Compare with the expected target
-                                let is_match = actual_value == *expected_target;
-                                Ok(is_match)
-                            })();
-
-                            (url_string_clone, task_result)
-                        }).expect("Failed to spawn task");
-                    }
-
-                    drop(nursery);
-
-                    // The stream yields the task's return value directly: (String, Result<bool, String>)
-                    while let Some((url, comparison_result)) = output_stream.next().await {
-                        match comparison_result {
-                            Ok(true) => successful_urls.push(url),
-                            Ok(false) => unsuccessful_urls.push(url),
-                            Err(e) => {
-                                eprintln!("Error processing URL '{}' for XPath '{}': {}", url, xpath_str, e);
-                                unsuccessful_urls.push(url); // Add to unsuccessful if the inner task failed
+                            // Check if target exists. If not, it's an automatic non-match.
+                            let maybe_expected_target = url_data.targets.get(&heading_clone);
+                            if maybe_expected_target.is_none() {
+                                // No target specified, consider it a non-match for this URL/XPath pair
+                                return Ok(false);
                             }
-                        }
-                    } // Panics in spawned tasks are implicitly handled by nursery/executor (may panic main thread or be ignored)
+                            let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
+
+                            // Parse HTML using skyscraper
+                            let document = skyscraper::html::parse(&content_clone)
+                                .map_err(|e| format!("HTML parsing failed: {}", e))?;
+
+                            // Create an item tree for XPath evaluation
+                            let xpath_item_tree = xpath::XpathItemTree::from(&document); // Use simplified import
+
+                            // Apply the XPath expression
+                            let item_set = xpath
+                                .apply(&xpath_item_tree)
+                                .map_err(|e| format!("XPath evaluation failed: {}", e))?;
+
+                            // Extract text content from the result (assuming we want the first node's text)
+                            let actual_value: String = if item_set.is_empty() {
+                                // Explicitly type actual_value
+                                "".to_string() // No match found
+                            } else {
+                                // Attempt to get text from the first item in the set
+                                // Trusting compiler error: assuming extract_as_tree_node returns &XpathItemTreeNode
+                                item_set[0]
+                                    .extract_as_node() // Assuming &Node<'_> based on prior errors/attempts
+                                    .extract_as_tree_node() // Assuming &XpathItemTreeNode<'_> based on current error E0599
+                                    .text(&xpath_item_tree) // Returns Option<String>
+                                    .unwrap_or_default() // Returns String
+                            };
+
+                            // Compare with the expected target
+                            let is_match = actual_value == *expected_target;
+                            Ok(is_match)
+                        })();
+
+                        (url_string_clone, task_result)
+                    })
+                    .expect("Failed to spawn task");
+            }
+
+            drop(nursery);
+
+            // The stream yields the task's return value directly: (String, Result<bool, String>)
+            while let Some((url, comparison_result)) = output_stream.next().await {
+                match comparison_result {
+                    Ok(true) => successful_urls.push(url),
+                    Ok(false) => unsuccessful_urls.push(url),
+                    Err(e) => {
+                        eprintln!(
+                            "Error processing URL '{}' for XPath '{}': {}",
+                            url, xpath_str, e
+                        );
+                        unsuccessful_urls.push(url); // Add to unsuccessful if the inner task failed
+                    }
+                }
+            } // Panics in spawned tasks are implicitly handled by nursery/executor (may panic main thread or be ignored)
 
             output_results
                 .entry(xpath_str.clone())
@@ -166,16 +178,16 @@ mod tests {
             .expect("Failed to read output schema file");
 
         // Parse schemas
-        let input_schema_value: serde_json::Value = serde_json::from_str(&input_schema)
-            .expect("Failed to parse input schema");
-        let output_schema_value: serde_json::Value = serde_json::from_str(&output_schema)
-            .expect("Failed to parse output schema");
+        let input_schema_value: serde_json::Value =
+            serde_json::from_str(&input_schema).expect("Failed to parse input schema");
+        let output_schema_value: serde_json::Value =
+            serde_json::from_str(&output_schema).expect("Failed to parse output schema");
 
         // Compile schemas
-        let input_compiled = JSONSchema::compile(&input_schema_value)
-            .expect("Failed to compile input schema");
-        let output_compiled = JSONSchema::compile(&output_schema_value)
-            .expect("Failed to compile output schema");
+        let input_compiled =
+            JSONSchema::compile(&input_schema_value).expect("Failed to compile input schema");
+        let output_compiled =
+            JSONSchema::compile(&output_schema_value).expect("Failed to compile output schema");
 
         // Test with valid input
         let valid_input = r#"
@@ -193,14 +205,14 @@ mod tests {
             }
         }
         "#;
-        let input_value: serde_json::Value = serde_json::from_str(valid_input)
-            .expect("Failed to parse test input");
+        let input_value: serde_json::Value =
+            serde_json::from_str(valid_input).expect("Failed to parse test input");
         assert!(input_compiled.is_valid(&input_value));
 
         // Test with invalid input (missing required fields)
         let invalid_input = r#"{"xpaths": {}}"#;
-        let invalid_value: serde_json::Value = serde_json::from_str(invalid_input)
-            .expect("Failed to parse invalid input");
+        let invalid_value: serde_json::Value =
+            serde_json::from_str(invalid_input).expect("Failed to parse invalid input");
         assert!(!input_compiled.is_valid(&invalid_value));
 
         // Test output schema with valid output
@@ -212,8 +224,8 @@ mod tests {
             }
         }
         "#;
-        let output_value: serde_json::Value = serde_json::from_str(valid_output)
-            .expect("Failed to parse test output");
+        let output_value: serde_json::Value =
+            serde_json::from_str(valid_output).expect("Failed to parse test output");
         assert!(output_compiled.is_valid(&output_value));
     }
 
@@ -349,7 +361,6 @@ mod tests {
         dbg!(&result);
         println!("------------------------------------------------");
 
-
         // 5. Deliberately fail the test to show the output
         panic!("Deliberately failing test_parse_and_process_test_json to show output.");
     }
@@ -357,12 +368,18 @@ mod tests {
     #[test]
     fn test_parse_html_with_special_chars() {
         // Test parsing HTML with escaped quotes in attributes and special characters in text content
-        let html_fragment = r#"<js-searchapivalidator computed=\"false\" kind=\"init\" method=\"false\" shorthand=\"false\">/[.*?#%^$&!<>,:;'=@{}()|[\\]\\\\]/g</js-searchapivalidator>"#;
+        //        let html_fragment = r#"<js-searchapivalidator computed="false" kind="init" method="false" shorthand="false"> /[.*?#%^$&!<>,:;'=@{}()|[\\]\\\\]/g </js-searchapivalidator>"#;
+
+        let html_fragment = r#"<js-searchapivalidator computed="false" kind="init" method="false" shorthand="false">/[.*?#%^$&!,:;'=@{}()|[\\]\\\\]/g</js-searchapivalidator>"#;
 
         // Attempt to parse the fragment
         let parse_result = skyscraper::html::parse(html_fragment);
 
         // Assert that parsing was successful (did not return Err)
-        assert!(parse_result.is_ok(), "Failed to parse HTML fragment with special characters: {:?}", parse_result.err());
+        assert!(
+            parse_result.is_ok(),
+            "Failed to parse HTML fragment with special characters: {:?}",
+            parse_result.err()
+        );
     }
 }
