@@ -88,15 +88,13 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 } else {
                                     // Attempt to get text from the first item in the set
                                     // Use nested match or map/and_then correctly on Result/Option
-                                    // Explicitly type the result of the match expression
-                                    let extracted_text: String = match item_set[0].extract_as_node() {
-                                        Ok(node_item) => match node_item.extract_as_tree_node() {
-                                            Ok(tree_node) => tree_node.text(&xpath_item_tree).unwrap_or_default(), // Use unwrap_or_default for Option<String>
-                                            Err(_) => "".to_string(), // Failed to extract TreeNode
+                                    match item_set[0].extract_as_node() { // Returns Result<NodeItem, ExtractError>
+                                        Ok(node_item) => match node_item.extract_as_tree_node() { // node_item is NodeItem
+                                            Ok(tree_node) => tree_node.text(&xpath_item_tree).unwrap_or_default(), // tree_node is TreeNode, returns String
+                                            Err(_) => "".to_string(), // Failed to extract TreeNode, return String
                                         },
-                                        Err(_) => "".to_string(), // Failed to extract NodeItem
-                                    };
-                                    extracted_text // Return the result of the match
+                                        Err(_) => "".to_string(), // Failed to extract NodeItem, return String
+                                    }
                                 };
 
                                 // Compare with the expected target
