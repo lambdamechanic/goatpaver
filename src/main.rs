@@ -446,21 +446,28 @@ mod tests {
 
         // 9. Extract text content from the result
         let mut results: Vec<String> = Vec::new();
-        for item in item_set.iter() {
-            // Match on the XpathItem variant. Since the XPath ends with /text(),
-            // we expect XpathItem::Text.
-            match item {
-                xpath::grammar::data_model::XpathItem::Text(text_node) => {
-                    // text_node here is &TextNode<'a>
-                    results.push(text_node.text().to_string());
+        for item in item_set.iter() { // item is &XpathItem<'_>
+            // Since the XPath ends with /text(), we expect Node items containing text nodes.
+            if let Some(node) = item.extract_as_node() { // node is &Node<'_>
+                if let Some(tree_node) = node.extract_as_tree_node() { // tree_node is &XpathItemTreeNode<'_>
+                    // For a text node selected by /text(), .text() should return its content.
+                    if let Some(text_content) = tree_node.text(&xpath_item_tree) {
+                        results.push(text_content);
+                    } else {
+                        // This might happen if the node is not a text node or has no text,
+                        // though unlikely given the XPath.
+                        eprintln!(
+                            "Warning: TreeNode did not yield text content: {:?}",
+                            tree_node
+                        );
+                    }
+                } else {
+                    eprintln!("Warning: Node could not be extracted as TreeNode: {:?}", node);
                 }
-                _ => {
-                    // This shouldn't happen with the given XPath, but good to handle defensively.
-                    eprintln!(
-                        "Warning: XPath item was not a text node as expected: {:?}",
-                        item
-                    );
-                }
+            } else {
+                // Handle cases where the item is not a Node (e.g., XpathItem::Value),
+                // which shouldn't happen for this XPath.
+                eprintln!("Warning: XPath item was not a Node as expected: {:?}", item);
             }
         }
 
