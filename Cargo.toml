@@ -14,6 +14,6 @@ async_executors = { version = "0.7", features = ["async_std"] }
 async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
 html5ever = "0.26"
-markup5ever_rcdom = "0.2"
+markup5ever_rcdom = { version = "0.2", features = ["html5ever-v0_26"] }
 # --- End added dependencies ---
 jsonschema = "0.17"

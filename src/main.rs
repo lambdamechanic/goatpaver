@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 use sxd_document::parser;
-use sxd_xpath::{Context, Factory, Value, XPath};
+use sxd_xpath::{Context, Factory, Value};
 use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
 use futures::StreamExt;
 use html5ever::parse_document;
 use html5ever::tendril::TendrilSink;
-use markup5ever_rcdom::{Handle, NodeData, RcDom};
+use markup5ever_rcdom::RcDom;
 
 // --- Input Structures ---
 
