@@ -1,10 +1,4 @@
 [package]
-name = "goatpaver"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-[package]
 name = "xpath-checker"
 version = "0.1.0"
 edition = "2021"
