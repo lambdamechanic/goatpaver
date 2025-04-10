@@ -382,4 +382,20 @@ mod tests {
             parse_result.err()
         );
     }
+
+    #[test]
+    fn test_parse_html_with_escaped_chars_and_custom_tags() {
+        // Test parsing HTML with escaped characters (&amp;, &lt;, &gt;, &#39;) and custom tags
+        let html_fragment = r#"<js-Program sourceType="script"><js-body><js-VariableDeclaration kind="const"><js-declarations><js-VariableDeclarator><js-id>x</js-id><js-init><js-ObjectExpression><js-properties><js-searchApiValidator computed="false" kind="init" method="false" shorthand="false">/[.*?#%^$&amp;!&lt;&gt;,:;&#39;=@{}()|[\\]\\\\]/g</js-searchApiValidator></js-properties></js-ObjectExpression></js-init></js-VariableDeclarator></js-declarations></js-VariableDeclaration></js-body></js-Program>"#;
+
+        // Attempt to parse the fragment
+        let parse_result = skyscraper::html::parse(html_fragment);
+
+        // Assert that parsing was successful (did not return Err)
+        assert!(
+            parse_result.is_ok(),
+            "Failed to parse HTML fragment with escaped chars and custom tags: {:?}",
+            parse_result.err()
+        );
+    }
 }
