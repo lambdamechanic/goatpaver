@@ -166,8 +166,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 #[cfg(test)]
 mod tests {
     use super::*; // Import items from the parent module (main)
+    use gag::BufferRedirect; // Import BufferRedirect
     use jsonschema::JSONSchema;
     use std::fs;
+    use std::io::Read; // Import Read trait for reading the buffer
 
     #[async_std::test]
     async fn test_schema_validation() {
@@ -351,17 +353,27 @@ mod tests {
         let input: InputJson = serde_json::from_str(&json_content)
             .expect("Failed to parse ./test.json into InputJson struct.");
 
-        // 3. Process the input
+        // 3. Capture stderr and process the input
+        let mut stderr_buf = BufferRedirect::stderr().unwrap();
         let result = process_input(input)
             .await
             .expect("process_input failed when running with content from ./test.json");
 
-        // 4. Print the result for inspection
-        println!("--- Output from process_input with test.json ---");
-        dbg!(&result);
-        println!("------------------------------------------------");
+        // 4. Read captured stderr
+        let mut captured_stderr = String::new();
+        stderr_buf
+            .read_to_string(&mut captured_stderr)
+            .expect("Failed to read captured stderr");
+        drop(stderr_buf); // Release stderr redirection
 
-        // 5. Deliberately fail the test to show the output
+        // 5. Print the result and captured stderr for inspection
+        println!("--- Output (stdout) from process_input with test.json ---");
+        dbg!(&result);
+        println!("--- Captured stderr from process_input with test.json ---");
+        println!("{}", captured_stderr);
+        println!("---------------------------------------------------------");
+
+        // 6. Deliberately fail the test to show the output
         panic!("Deliberately failing test_parse_and_process_test_json to show output.");
     }
 

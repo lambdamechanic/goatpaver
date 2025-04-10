@@ -13,4 +13,7 @@ async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
 skyscraper = "0.6.4" # Replaced html5ever, markup5ever_rcdom, sxd-document, sxd-xpath
 # --- End added dependencies ---
+
+[dev-dependencies] # Add dev-dependencies section if it doesn't exist
+gag = "1.0" # Add gag crate
 jsonschema = "0.17"
