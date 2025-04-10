@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
+use sxd_document::parser;
+use sxd_xpath::{evaluate_xpath, Factory, Context, Value};
 
 // --- Input Structures ---
 
@@ -26,21 +28,67 @@ struct XpathResult {
 }
 
 fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
-    // 3. Extract URLs (Moved from main)
-    let all_urls: Vec<String> = input.urls.keys().cloned().collect();
+    // Pre-parse all HTML documents
+    let packages: HashMap<String, Result<sxd_document::Package, _>> = input
+        .urls
+        .iter()
+        .map(|(url, url_data)| (url.clone(), parser::parse(&url_data.content)))
+        .collect();
 
-    // 4. Build output structure (Moved from main)
     let mut output_results = HashMap::new();
+    let xpath_factory = Factory::new();
+
     // Iterate through headings and their associated XPath lists
-    for (_heading, xpath_list) in input.xpaths {
-        // Iterate through individual XPaths in the list
-        for xpath in xpath_list {
-            let result = XpathResult {
-                // Stub: All URLs are successful for every XPath
-                successful: all_urls.clone(),
-                unsuccessful: Vec::new(), // Empty unsuccessful list
+    for (heading, xpath_list) in &input.xpaths {
+        // Iterate through individual XPath strings in the list
+        for xpath_str in xpath_list {
+            let mut successful_urls = Vec::new();
+            let mut unsuccessful_urls = Vec::new();
+
+            // Attempt to compile the XPath expression once
+            let xpath = match xpath_factory.build(xpath_str) {
+                Ok(xp) => Some(xp),
+                Err(_) => {
+                    // If XPath compilation fails, all URLs are unsuccessful for this XPath
+                    None
+                }
             };
-            output_results.insert(xpath.clone(), result); // Use individual xpath as key
+
+            // Iterate through each URL to check this XPath
+            for (url_string, url_data) in &input.urls {
+                let expected_target = url_data.targets.get(heading).map(|s| s.as_str()).unwrap_or("");
+
+                match (packages.get(url_string).unwrap(), &xpath) {
+                    (Ok(package), Some(compiled_xpath)) => {
+                        let document = package.as_document();
+                        let context = Context::new();
+                        match evaluate_xpath(&context, document.root(), compiled_xpath) {
+                            Ok(Value::String(actual_value)) => {
+                                if actual_value == expected_target {
+                                    successful_urls.push(url_string.clone());
+                                } else {
+                                    unsuccessful_urls.push(url_string.clone());
+                                }
+                            }
+                            Ok(_) | Err(_) => {
+                                if expected_target.is_empty() && matches!(evaluate_xpath(&context, document.root(), compiled_xpath), Ok(Value::Nodeset(nodeset)) if nodeset.is_empty()) {
+                                     successful_urls.push(url_string.clone());
+                                } else {
+                                     unsuccessful_urls.push(url_string.clone());
+                                }
+                            }
+                        }
+                    }
+                    (Err(_), _) | (_, None) => {
+                        unsuccessful_urls.push(url_string.clone());
+                    }
+                }
+            }
+
+            output_results.entry(xpath_str.clone()).or_insert_with(|| XpathResult {
+                successful: successful_urls,
+                unsuccessful: unsuccessful_urls,
+            });
         }
     }
 
