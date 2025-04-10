@@ -450,22 +450,20 @@ mod tests {
             // item is &XpathItem<'_>
             // Since the XPath ends with /text(), we expect Node items containing text nodes.
             let node = item.extract_as_node();
-                // node is &Node<'_>
-                let tree_node = node.extract_as_tree_node();
-                    // tree_node is &XpathItemTreeNode<'_>
-                    // For a text node selected by /text(), .text() should return its content.
-                    if let Some(text_content) = tree_node.text(&xpath_item_tree) {
-                        results.push(text_content);
-                    } else {
-                        // This might happen if the node is not a text node or has no text,
-                        // though unlikely given the XPath.
-                        eprintln!(
-                            "Warning: TreeNode did not yield text content: {:?}",
-                            tree_node
-                        );
-                    }
-                // Removed else for tree_node check as extract_as_tree_node always returns a TreeNode
-            // Removed else for node check as extract_as_node always returns a Node
+            // node is &Node<'_>
+            let tree_node = node.extract_as_tree_node();
+            // tree_node is &XpathItemTreeNode<'_>
+            // For a text node selected by /text(), .text() should return its content.
+            if let Some(text_content) = tree_node.text(&xpath_item_tree) {
+                results.push(text_content);
+            } else {
+                // This might happen if the node is not a text node or has no text,
+                // though unlikely given the XPath.
+                eprintln!(
+                    "Warning: TreeNode did not yield text content: {:?}",
+                    tree_node
+                );
+            }
         }
 
         // 10. Print the results
@@ -483,7 +481,7 @@ mod tests {
         println!("---------------------------------------------------------------------");
 
         // Optional: Add assertions here if you know the expected output
-        // assert!(!results.is_empty(), "Expected to find at least one result");
+        assert!(!results.is_empty(), "Expected to find at least one result");
         // assert_eq!(results[0], "Expected Store Name", "Mismatch in store name");
     }
 }
