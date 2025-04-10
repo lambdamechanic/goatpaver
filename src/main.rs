@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
@@ -88,11 +87,14 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     "".to_string() // No match found
                                 } else {
                                     // Attempt to get text from the first item in the set
-                                    item_set[0]
-                                        .extract_as_node() // Get the node item
-                                        .and_then(|node_item| node_item.extract_as_tree_node()) // Get the TreeNode
-                                        .and_then(|tree_node| tree_node.text(&xpath_item_tree)) // Get text content
-                                        .unwrap_or_else(|| "".to_string()) // Handle cases where extraction fails or text is None
+                                    // Use nested match or map/and_then correctly on Result/Option
+                                    match item_set[0].extract_as_node() {
+                                        Ok(node_item) => match node_item.extract_as_tree_node() {
+                                            Ok(tree_node) => tree_node.text(&xpath_item_tree).unwrap_or_default(), // Use unwrap_or_default for Option<String>
+                                            Err(_) => "".to_string(), // Failed to extract TreeNode
+                                        },
+                                        Err(_) => "".to_string(), // Failed to extract NodeItem
+                                    }
                                 };
 
                                 // Compare with the expected target
