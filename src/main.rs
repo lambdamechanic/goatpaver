@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
-use sxd_document::parser;
-use sxd_xpath::{Context, Factory, Value};
+// Removed sxd_document and sxd_xpath imports
 use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
 use futures::StreamExt;
-use html5ever::parse_document;
-use html5ever::tendril::TendrilSink;
-use markup5ever_rcdom::{RcDom, SerializableHandle};
+// Removed html5ever and markup5ever_rcdom imports
+use skyscraper::html; // Added skyscraper html import
+use skyscraper::xpath::{self, XpathItemTree}; // Added skyscraper xpath imports
 
 // --- Input Structures ---
 
@@ -37,7 +37,7 @@ struct XpathResult {
 async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let input = Arc::new(input);
     let mut output_results = HashMap::new();
-    let xpath_factory = Arc::new(Factory::new());
+    // Removed xpath_factory
 
     for (heading, xpath_list) in &input.xpaths {
         for xpath_str in xpath_list {
@@ -51,16 +51,13 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                 let url_string_clone = url_string.clone();
                 let heading_clone = heading.clone();
                 let xpath_str_clone = xpath_str.clone();
-                let factory_clone = Arc::clone(&xpath_factory);
+                // Removed factory_clone
 
                         nursery.nurse(async move {
                             let task_result: Result<bool, String> = (|| {
-                                // Compile XPath inside the task
-                                let compiled_xpath = factory_clone
-                                    .build(&xpath_str_clone)
-                                    .map_err(sxd_xpath::Error::from)
-                                    .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath))
-                                    .map_err(|e| format!("XPath compilation failed: {}", e))?;
+                                // Parse XPath using skyscraper
+                                let xpath = skyscraper::xpath::parse(&xpath_str_clone)
+                                    .map_err(|e| format!("XPath parsing failed: {}", e))?;
 
                                 let url_data = input_arc_clone.urls.get(&url_string_clone)
                                     .ok_or_else(|| "Internal error: URL data not found".to_string())?;
@@ -75,58 +72,31 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 }
                                 let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
 
-                                // Parse with html5ever first
-                                let rc_dom = parse_document(RcDom::default(), Default::default())
-                                    .from_utf8()
-                                    .read_from(&mut content_clone.as_bytes())
-                                    .map_err(|_| "HTML parsing with html5ever failed".to_string())?;
+                                // Parse HTML using skyscraper
+                                let document = skyscraper::html::parse(&content_clone)
+                                    .map_err(|e| format!("HTML parsing failed: {}", e))?;
 
-                                // Serialize the RcDom back to a string
-                                let mut serialized_bytes = Vec::new();
-                                // Wrap the document handle for serialization
-                                let serializable_document: SerializableHandle = rc_dom.document.clone().into();
-                                html5ever::serialize(&mut serialized_bytes, &serializable_document, Default::default())
-                                    .map_err(|e| format!("HTML serialization failed: {}", e))?;
-                                let serialized_html = String::from_utf8(serialized_bytes)
-                                    .map_err(|e| format!("Serialized HTML is not valid UTF-8: {}", e))?;
+                                // Create an item tree for XPath evaluation
+                                let xpath_item_tree = skyscraper::xpath::XpathItemTree::from(&document);
 
-                                // Parse the serialized, hopefully cleaner, HTML with sxd_document
-                                let package = match parser::parse(&serialized_html) {
-                                    Ok(p) => p,
-                                    Err(e) => {
-                                        // Log the problematic HTML upon parsing failure
-                                        eprintln!(
-                                            "--- XML Parse Error Details ---\nURL: {}\nXPath: {}\nError: {}\n--- Problematic Serialized HTML (first 2000 chars) ---",
-                                            url_string_clone, xpath_str_clone, e
-                                        );
-                                        // Limit output size to avoid flooding logs
-                                        let limit = std::cmp::min(serialized_html.len(), 2000);
-                                        eprintln!("{}", &serialized_html[..limit]);
-                                        if serialized_html.len() > 2000 {
-                                            eprintln!("... (truncated)");
-                                        }
-                                        eprintln!("--- End Problematic HTML ---");
-                                        return Err(format!("XML parsing of serialized HTML failed: {}", e));
-                                    }
-                                };
-                                let document = package.as_document();
-                                let context = Context::new();
-
-                                let eval_result = compiled_xpath.evaluate(&context, document.root())
+                                // Apply the XPath expression
+                                let item_set = xpath.apply(&xpath_item_tree)
                                     .map_err(|e| format!("XPath evaluation failed: {}", e))?;
 
-                                let is_match = match eval_result {
-                                    Value::String(actual_value) => actual_value == *expected_target,
-                                    Value::Nodeset(nodeset) => {
-                                        let actual_value = if nodeset.size() == 0 {
-                                            "".to_string()
-                                        } else {
-                                            nodeset.document_order_first().map_or("".to_string(), |n| n.string_value())
-                                        };
-                                        actual_value == *expected_target
-                                    }
-                                    _ => false,
+                                // Extract text content from the result (assuming we want the first node's text)
+                                let actual_value = if item_set.is_empty() {
+                                    "".to_string() // No match found
+                                } else {
+                                    // Attempt to get text from the first item in the set
+                                    item_set[0]
+                                        .extract_as_node() // Get the node item
+                                        .and_then(|node_item| node_item.extract_as_tree_node()) // Get the TreeNode
+                                        .and_then(|tree_node| tree_node.text(&xpath_item_tree)) // Get text content
+                                        .unwrap_or_else(|| "".to_string()) // Handle cases where extraction fails or text is None
                                 };
+
+                                // Compare with the expected target
+                                let is_match = actual_value == *expected_target;
                                 Ok(is_match)
                             })();
 
