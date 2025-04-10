@@ -78,15 +78,21 @@ mod tests {
 
     #[test]
     fn test_process_input_stub() {
-        // 1. Prepare input data
-        let mut urls = HashMap::new();
-        urls.insert("http://example.com".to_string(), UrlData {});
-        urls.insert("http://anothersite.org".to_string(), UrlData {});
-
-        let input = InputJson {
-            xpaths: vec!["/html/body/h1".to_string(), "//div[@id='main']".to_string()],
-            urls,
-        };
+        // 1. Prepare input data from JSON string
+        let input_json_string = r#"
+        {
+            "xpaths": [
+                "/html/body/h1",
+                "//div[@id='main']"
+            ],
+            "urls": {
+                "http://example.com": {},
+                "http://anothersite.org": {}
+            }
+        }
+        "#;
+        let input: InputJson = serde_json::from_str(input_json_string)
+            .expect("Failed to parse test input JSON");
 
         // 2. Call the function under test
         let output = process_input(input);
