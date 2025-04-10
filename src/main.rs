@@ -497,4 +497,71 @@ mod tests {
             xpath_str
         );
     }
+
+    #[test]
+    fn test_xpath_matches_xpup_bunnings() {
+        // 1. Read the test.json file
+        let json_content = fs::read_to_string("./test.json")
+            .expect("Failed to read ./test.json. Make sure the file exists in the project root.");
+
+        // 2. Parse the JSON content into InputJson
+        let input: InputJson = serde_json::from_str(&json_content)
+            .expect("Failed to parse ./test.json into InputJson struct.");
+
+        // 3. Get the specific URL and its content
+        let url_key = "https://www.bunnings.com.au/bbq-assembly-service_p0328192";
+        let url_data = input
+            .urls
+            .get(url_key)
+            .expect(&format!("test.json should contain the URL entry: {}", url_key));
+        let html_content = &url_data.content;
+
+        // 4. Define the XPath expression and expected result
+        let xpath_str = "//js-trade_domain/text()";
+        let expected_result = "https://trade.bunnings.com.au/"; // Note: xpup adds a newline, ensure we match the *text node* content
+
+        // 5. Parse HTML
+        let document = skyscraper::html::parse(html_content)
+            .expect(&format!("Failed to parse HTML content for URL: {}", url_key));
+
+        // 6. Parse XPath
+        let xpath =
+            xpath::parse(xpath_str).expect(&format!("Failed to parse XPath: {}", xpath_str));
+
+        // 7. Create an item tree
+        let xpath_item_tree = xpath::XpathItemTree::from(&document);
+
+        // 8. Apply the XPath expression
+        let item_set = xpath
+            .apply(&xpath_item_tree)
+            .expect("XPath evaluation failed");
+
+        // 9. Extract text content from the result
+        let mut results: Vec<String> = Vec::new();
+        for item in item_set.iter() {
+            let node = item.extract_as_node();
+            let tree_node = node.extract_as_tree_node();
+            if let Some(text_content) = tree_node.text(&xpath_item_tree) {
+                results.push(text_content);
+            }
+        }
+
+        // 10. Assert the expected output
+        assert!(
+            !results.is_empty(),
+            "Expected to find at least one result for XPath: {}",
+            xpath_str
+        );
+        assert_eq!(
+            results.len(),
+            1,
+            "Expected exactly one result for XPath: {}",
+            xpath_str
+        );
+        assert_eq!(
+            results[0], expected_result,
+            "Mismatch in expected text content for XPath: {}",
+            xpath_str
+        );
+    }
 }
