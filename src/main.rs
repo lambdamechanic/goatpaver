@@ -86,15 +86,12 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 let actual_value: String = if item_set.is_empty() { // Explicitly type actual_value
                                     "".to_string() // No match found
                                 } else {
-                                    // Attempt to get text from the first item in the set
-                                    // Use nested match or map/and_then correctly on Result/Option
-                                    match item_set[0].extract_as_node() { // Returns Result<NodeItem, ExtractError>
-                                        Ok(node_item) => match node_item.extract_as_tree_node() { // node_item is NodeItem
-                                            Ok(tree_node) => tree_node.text(&xpath_item_tree).unwrap_or_default(), // tree_node is TreeNode, returns String
-                                            Err(_) => "".to_string(), // Failed to extract TreeNode, return String
-                                        },
-                                        Err(_) => "".to_string(), // Failed to extract NodeItem, return String
-                                    }
+                                    // Attempt to get text from the first item in the set using and_then
+                                    item_set[0].extract_as_node() // Result<NodeItem, ExtractError>
+                                        .ok() // Option<NodeItem>
+                                        .and_then(|node_item| node_item.extract_as_tree_node().ok()) // Option<TreeNode>
+                                        .and_then(|tree_node| tree_node.text(&xpath_item_tree)) // Option<String>
+                                        .unwrap_or_default() // String (empty if any step failed or returned None)
                                 };
 
                                 // Compare with the expected target
