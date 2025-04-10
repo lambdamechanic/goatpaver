@@ -87,7 +87,7 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                 }
                                 Ok(Value::Nodeset(nodeset)) => {
                                     // XPath resulted in a nodeset (potentially empty)
-                                    let actual_value = if nodeset.is_empty() {
+                                    let actual_value = if nodeset.size() == 0 {
                                         // Nodeset is empty
                                         "".to_string()
                                     } else {
