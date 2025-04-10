@@ -406,4 +406,79 @@ mod tests {
             parse_result.err()
         );
     }
+
+    #[test]
+    fn test_xpath_on_test_json_content() {
+        // 1. Read the test.json file
+        let json_content = fs::read_to_string("./test.json")
+            .expect("Failed to read ./test.json. Make sure the file exists in the project root.");
+
+        // 2. Parse the JSON content into InputJson
+        let input: InputJson = serde_json::from_str(&json_content)
+            .expect("Failed to parse ./test.json into InputJson struct.");
+
+        // 3. Get the content of the first URL entry
+        let (_url, url_data) = input
+            .urls
+            .iter()
+            .next()
+            .expect("test.json should contain at least one URL entry.");
+        let html_content = &url_data.content;
+
+        // 4. Define the XPath expression
+        let xpath_str = "//js-Literal[@name='storename']/text()";
+
+        // 5. Parse HTML
+        let document = skyscraper::html::parse(html_content)
+            .expect("Failed to parse HTML content from test.json");
+
+        // 6. Parse XPath
+        let xpath =
+            xpath::parse(xpath_str).expect(&format!("Failed to parse XPath: {}", xpath_str));
+
+        // 7. Create an item tree
+        let xpath_item_tree = xpath::XpathItemTree::from(&document);
+
+        // 8. Apply the XPath expression
+        let item_set = xpath
+            .apply(&xpath_item_tree)
+            .expect("XPath evaluation failed");
+
+        // 9. Extract text content from the result
+        let mut results: Vec<String> = Vec::new();
+        for item in item_set.iter() {
+            // The XPath targets text nodes directly
+            if let Some(text_node) = item.extract_as_text() {
+                results.push(text_node.text().to_string());
+            } else {
+                eprintln!("Warning: XPath item was not a text node as expected.");
+                // Optionally handle other node types if needed, e.g., get element text
+                if let Some(node) = item.extract_as_node() {
+                     if let Some(tree_node) = node.extract_as_tree_node() {
+                         if let Some(text) = tree_node.text(&xpath_item_tree) {
+                            results.push(text);
+                         }
+                     }
+                }
+            }
+        }
+
+        // 10. Print the results
+        println!(
+            "--- Results for XPath '{}' on first URL content from test.json ---",
+            xpath_str
+        );
+        if results.is_empty() {
+            println!("No matching text nodes found.");
+        } else {
+            for (i, result) in results.iter().enumerate() {
+                println!("Result [{}]: '{}'", i, result);
+            }
+        }
+        println!("---------------------------------------------------------------------");
+
+        // Optional: Add assertions here if you know the expected output
+        // assert!(!results.is_empty(), "Expected to find at least one result");
+        // assert_eq!(results[0], "Expected Store Name", "Mismatch in store name");
+    }
 }
