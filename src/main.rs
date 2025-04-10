@@ -28,8 +28,6 @@ struct XpathResult {
 }
 
 fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
-    // DEBUG: Print input structure at the start of processing
-    eprintln!("DEBUG: process_input received input:\n{:#?}", input);
 
     // Pre-parse all HTML documents
     let packages: HashMap<String, Result<sxd_document::Package, _>> = input
@@ -79,10 +77,8 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                     Ok(Value::String(actual_value)) => {
                                         // XPath result was explicitly a string
                                         if actual_value == expected_target {
-                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                             successful_urls.push(url_string.clone());
                                         } else {
-                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                             unsuccessful_urls.push(url_string.clone());
                                         }
                                     }
@@ -99,40 +95,28 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                         };
 
                                         if actual_value == expected_target {
-                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                             successful_urls.push(url_string.clone());
                                         } else {
-                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                             unsuccessful_urls.push(url_string.clone());
                                         }
                                     }
                                     Ok(_) | Err(_) => {
                                         // Handles Boolean, Number, or an evaluation Error
-                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Evaluation FAILURE or unexpected type. Result: {:?}", xpath_str, url_string, eval_result);
                                         unsuccessful_urls.push(url_string.clone());
                                     }
                                 }
                             }
                             Err(_) => {
                                 // Document parsing failed
-                                eprintln!(
-                                    "DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.",
-                                    xpath_str, url_string
-                                );
                                 unsuccessful_urls.push(url_string.clone());
                             }
                         }
                     } else {
                         // XPath compilation failed
-                        eprintln!(
-                            "DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.",
-                            xpath_str, url_string
-                        );
                         unsuccessful_urls.push(url_string.clone());
                     }
                 } else {
                     // No target specified for this heading/URL combination
-                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] No target specified. Marking as unsuccessful.", xpath_str, url_string);
                     unsuccessful_urls.push(url_string.clone());
                 }
             }
@@ -146,11 +130,6 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
         }
     }
 
-    // DEBUG: Print the final results map before returning
-    eprintln!(
-        "DEBUG: process_input returning results:\n{:#?}",
-        output_results
-    );
 
     output_results
 }
