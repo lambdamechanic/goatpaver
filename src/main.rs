@@ -59,66 +59,72 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
 
             // Iterate through each URL to check this XPath
             for (url_string, url_data) in &input.urls {
-                let expected_target = url_data
-                    .targets
-                    .get(heading)
-                    .map(|s| s.as_str())
-                    .unwrap_or("");
+                // Check if a target exists for this heading and URL
+                if let Some(expected_target_str) = url_data.targets.get(heading) {
+                    // Target exists, proceed with evaluation
+                    let expected_target = expected_target_str.as_str(); // Convert &String to &str
 
-                // First, check if XPath compilation was successful
-                if let Some(compiled_xpath_ref) = xpath.as_ref() {
-                    // Second, check if the document parsing was successful for this URL
-                    match packages.get(url_string).unwrap() {
-                        Ok(package) => {
-                            // Both XPath and Document are valid, proceed with evaluation
-                            let document = package.as_document();
-                            let context = Context::new();
-                            let eval_result =
-                                compiled_xpath_ref.evaluate(&context, document.root());
+                    // First, check if XPath compilation was successful
+                    if let Some(compiled_xpath_ref) = xpath.as_ref() {
+                        // Second, check if the document parsing was successful for this URL
+                        match packages.get(url_string).unwrap() {
+                            Ok(package) => {
+                                // Both XPath and Document are valid, proceed with evaluation
+                                let document = package.as_document();
+                                let context = Context::new();
+                                let eval_result =
+                                    compiled_xpath_ref.evaluate(&context, document.root());
 
-                            match eval_result {
-                                Ok(Value::String(actual_value)) => {
-                                    // XPath result was explicitly a string
-                                    if actual_value == expected_target {
-                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
-                                        successful_urls.push(url_string.clone());
-                                    } else {
-                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
+                                match eval_result {
+                                    Ok(Value::String(actual_value)) => {
+                                        // XPath result was explicitly a string
+                                        if actual_value == expected_target {
+                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
+                                            successful_urls.push(url_string.clone());
+                                        } else {
+                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
+                                            unsuccessful_urls.push(url_string.clone());
+                                        }
+                                    }
+                                    Ok(Value::Nodeset(nodeset)) => {
+                                        // XPath resulted in a nodeset (potentially empty)
+                                        let actual_value = if nodeset.size() == 0 {
+                                            // Nodeset is empty
+                                            "".to_string()
+                                        } else {
+                                            // Get string value of the first node in document order
+                                            nodeset.document_order_first().map_or("".to_string(), |node| node.string_value())
+                                        };
+
+                                        if actual_value == expected_target {
+                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
+                                            successful_urls.push(url_string.clone());
+                                        } else {
+                                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
+                                            unsuccessful_urls.push(url_string.clone());
+                                        }
+                                    }
+                                    Ok(_) | Err(_) => {
+                                        // Handles Boolean, Number, or an evaluation Error
+                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Evaluation FAILURE or unexpected type. Result: {:?}", xpath_str, url_string, eval_result);
                                         unsuccessful_urls.push(url_string.clone());
                                     }
-                                }
-                                Ok(Value::Nodeset(nodeset)) => {
-                                    // XPath resulted in a nodeset (potentially empty)
-                                    let actual_value = if nodeset.size() == 0 {
-                                        // Nodeset is empty
-                                        "".to_string()
-                                    } else {
-                                        // Get string value of the first node in document order
-                                        nodeset.document_order_first().map_or("".to_string(), |node| node.string_value())
-                                    };
-
-                                    if actual_value == expected_target {
-                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
-                                        successful_urls.push(url_string.clone());
-                                    } else {
-                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
-                                        unsuccessful_urls.push(url_string.clone());
-                                    }
-                                }
-                                Ok(_) | Err(_) => {
-                                    // Handles Boolean, Number, or an evaluation Error
-                                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Evaluation FAILURE or unexpected type. Result: {:?}", xpath_str, url_string, eval_result);
-                                    unsuccessful_urls.push(url_string.clone());
                                 }
                             }
+                            Err(_) => {
+                                // Document parsing failed
+                                eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.", xpath_str, url_string);
+                                unsuccessful_urls.push(url_string.clone());
+                            }
                         }
-                        Err(_) => {
-                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.", xpath_str, url_string);
-                            unsuccessful_urls.push(url_string.clone());
-                        }
+                    } else {
+                        // XPath compilation failed
+                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.", xpath_str, url_string);
+                        unsuccessful_urls.push(url_string.clone());
                     }
                 } else {
-                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.", xpath_str, url_string);
+                    // No target specified for this heading/URL combination
+                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] No target specified. Marking as unsuccessful.", xpath_str, url_string);
                     unsuccessful_urls.push(url_string.clone());
                 }
             }
