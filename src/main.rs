@@ -66,8 +66,14 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     .ok_or_else(|| "Internal error: URL data not found".to_string())?;
 
                                 let content_clone = url_data.content.clone();
-                                let expected_target = url_data.targets.get(&heading_clone)
-                                    .ok_or_else(|| "No target specified".to_string())?;
+
+                                // Check if target exists. If not, it's an automatic non-match.
+                                let maybe_expected_target = url_data.targets.get(&heading_clone);
+                                if maybe_expected_target.is_none() {
+                                    // No target specified, consider it a non-match for this URL/XPath pair
+                                    return Ok(false);
+                                }
+                                let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
 
                                 // Parse with html5ever first
                                 let rc_dom = parse_document(RcDom::default(), Default::default())
