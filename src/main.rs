@@ -7,6 +7,9 @@ use sxd_xpath::{Context, Factory, Value, XPath};
 use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
 use futures::StreamExt;
+use html5ever::parse_document;
+use html5ever::tendril::TendrilSink;
+use markup5ever_rcdom::{Handle, NodeData, RcDom};
 
 // --- Input Structures ---
 
@@ -66,8 +69,22 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 let expected_target = url_data.targets.get(&heading_clone)
                                     .ok_or_else(|| "No target specified".to_string())?;
 
-                                let package = parser::parse(&content_clone)
-                                    .map_err(|e| format!("HTML parsing failed: {}", e))?;
+                                // Parse with html5ever first
+                                let rc_dom = parse_document(RcDom::default(), Default::default())
+                                    .from_utf8()
+                                    .read_from(&mut content_clone.as_bytes())
+                                    .map_err(|_| "HTML parsing with html5ever failed".to_string())?;
+
+                                // Serialize the RcDom back to a string
+                                let mut serialized_bytes = Vec::new();
+                                html5ever::serialize(&mut serialized_bytes, &rc_dom.document, Default::default())
+                                    .map_err(|e| format!("HTML serialization failed: {}", e))?;
+                                let serialized_html = String::from_utf8(serialized_bytes)
+                                    .map_err(|e| format!("Serialized HTML is not valid UTF-8: {}", e))?;
+
+                                // Parse the serialized, hopefully cleaner, HTML with sxd_document
+                                let package = parser::parse(&serialized_html)
+                                    .map_err(|e| format!("XML parsing of serialized HTML failed: {}", e))?;
                                 let document = package.as_document();
                                 let context = Context::new();
 
