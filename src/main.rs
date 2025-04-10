@@ -72,10 +72,6 @@ async fn process_input(
                             let maybe_expected_target = url_data.targets.get(&heading_clone);
                             if maybe_expected_target.is_none() {
                                 // No target specified, consider it a non-match for this URL/XPath pair
-                                eprintln!(
-                                    "[{}] No target found for heading '{}' in URL '{}'",
-                                    xpath_str_clone, heading_clone, url_string_clone
-                                );
                                 return Ok(false);
                             }
                             let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
