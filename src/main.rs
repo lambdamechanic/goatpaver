@@ -62,7 +62,7 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                     (Ok(package), Some(compiled_xpath)) => {
                         let document = package.as_document();
                         let context = Context::new();
-                        match evaluate_xpath(&context, document.root(), compiled_xpath) {
+                        match compiled_xpath.evaluate(&context, document.root()) {
                             Ok(Value::String(actual_value)) => {
                                 if actual_value == expected_target {
                                     successful_urls.push(url_string.clone());
@@ -71,7 +71,7 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                 }
                             }
                             Ok(_) | Err(_) => {
-                                if expected_target.is_empty() && matches!(evaluate_xpath(&context, document.root(), compiled_xpath), Ok(Value::Nodeset(nodeset)) if nodeset.is_empty()) {
+                                if expected_target.is_empty() && matches!(compiled_xpath.evaluate(&context, document.root()), Ok(Value::Nodeset(nodeset)) if nodeset.size() == 0) {
                                      successful_urls.push(url_string.clone());
                                 } else {
                                      unsuccessful_urls.push(url_string.clone());
