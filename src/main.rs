@@ -59,14 +59,14 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                 let expected_target = url_data.targets.get(heading).map(|s| s.as_str()).unwrap_or("");
 
                 // First, check if XPath compilation was successful
-                if let Some(ref compiled_xpath) = xpath {
+                if let Some(compiled_xpath_ref) = xpath.as_ref() {
                     // Second, check if the document parsing was successful for this URL
                     match packages.get(url_string).unwrap() {
                         Ok(package) => {
                             // Both XPath and Document are valid, proceed with evaluation
                             let document = package.as_document();
                             let context = Context::new();
-                            let eval_result = compiled_xpath.evaluate(&context, document.root());
+                            let eval_result = compiled_xpath_ref.evaluate(&context, document.root());
 
                             match eval_result {
                                 Ok(Value::String(actual_value)) => {
