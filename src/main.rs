@@ -111,7 +111,10 @@ async fn process_input(
                             if !is_match {
                                 eprintln!(
                                     "[{}] Mismatch in URL '{}': Expected '{}', Found '{}'",
-                                    xpath_str_clone, url_string_clone, expected_target, actual_value
+                                    xpath_str_clone,
+                                    url_string_clone,
+                                    expected_target,
+                                    actual_value
                                 );
                             }
                             Ok(is_match)
@@ -247,7 +250,7 @@ mod tests {
         let input_json_string = r#"
         {
             "xpaths": {
-                "Content Selectors": ["/html/body/p"],
+                "Content Selectors": ["/html/body/p/text()"],
                 "Link Selectors": ["//a[@id='link1']"],
                 "Nonexistent Selectors": ["//div[@class='nonexistent']"]
             },
@@ -280,7 +283,7 @@ mod tests {
         // 3. Define expected output as a JSON string
         let expected_json_string = r#"
         {
-            "/html/body/p": {
+            "/html/body/p/text()": {
                 "successful": ["http://site1.com", "http://site2.com"],
                 "unsuccessful": []
             },
@@ -303,7 +306,6 @@ mod tests {
             result.successful.sort();
             result.unsuccessful.sort();
         }
-
 
         // 4. Assertions
         assert_eq!(
