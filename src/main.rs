@@ -353,4 +353,16 @@ mod tests {
         // 5. Deliberately fail the test to show the output
         panic!("Deliberately failing test_parse_and_process_test_json to show output.");
     }
+
+    #[test]
+    fn test_parse_html_with_special_chars() {
+        // Test parsing HTML with escaped quotes in attributes and special characters in text content
+        let html_fragment = r#"<js-searchapivalidator computed=\"false\" kind=\"init\" method=\"false\" shorthand=\"false\">/[.*?#%^$&!<>,:;'=@{}()|[\\]\\\\]/g</js-searchapivalidator>"#;
+
+        // Attempt to parse the fragment
+        let parse_result = skyscraper::html::parse(html_fragment);
+
+        // Assert that parsing was successful (did not return Err)
+        assert!(parse_result.is_ok(), "Failed to parse HTML fragment with special characters: {:?}", parse_result.err());
+    }
 }
