@@ -78,8 +78,14 @@ mod tests {
                 "//div[@id='main']"
             ],
             "urls": {
-                "http://example.com": {},
-                "http://anothersite.org": {}
+                "http://example.com": {
+                    "targets": {},
+                    "content": ""
+                },
+                "http://anothersite.org": {
+                    "targets": {},
+                    "content": ""
+                }
             }
         }
         "#;
@@ -146,9 +152,11 @@ mod tests {
             ],
             "urls": {
                 "http://site1.com": {
+                    "targets": {},
                     "content": "<html><body><p>Site 1 paragraph</p><a id='link1'>Link 1</a></body></html>"
                 },
                 "http://site2.com": {
+                    "targets": {},
                     "content": "<html><body><p>Site 2 paragraph</p><b>No link here</b></body></html>"
                 }
             }
