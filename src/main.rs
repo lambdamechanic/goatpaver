@@ -252,7 +252,8 @@ mod tests {
             "xpaths": {
                 "Content Selectors": ["/html/body/p/text()"],
                 "Link Selectors": ["//a[@id='link1']"],
-                "Nonexistent Selectors": ["//div[@class='nonexistent']"]
+                "Nonexistent Selectors": ["//div[@class='nonexistent']"],
+                "spikytags": ["//js-Literal/text()"]
             },
             "urls": {
                 "http://site1.com": {
@@ -260,7 +261,7 @@ mod tests {
                         "Content Selectors": "Site 1 paragraph",
                         "Link Selectors": "Link 1"
                     },
-                    "content": "<html><body><p>Site 1 paragraph</p><a id='link1'>Link 1</a></body></html>"
+                    "content": "<html><body><p>Site 1 paragraph</p><js-Literal>jsliteraltext</js-Literal><a id='link1'>Link 1</a></body></html>"
                 },
                 "http://site2.com": {
                     "targets": {
@@ -294,6 +295,10 @@ mod tests {
             "//div[@class='nonexistent']": {
                 "successful": [],
                 "unsuccessful": ["http://site1.com", "http://site2.com"]
+            },
+            "//js-Literal/text()": {
+                "successful: ["http://site1.com"],
+                "unsuccessful": ["http://site2.com"]
             }
         }
         "#;
@@ -481,7 +486,15 @@ mod tests {
         println!("---------------------------------------------------------------------");
 
         // Assert the expected output
-        assert!(!results.is_empty(), "Expected to find at least one result for XPath: {}", xpath_str);
-        assert_eq!(results[0], "NOT_AVAILABLE", "Mismatch in expected text content for XPath: {}", xpath_str);
+        assert!(
+            !results.is_empty(),
+            "Expected to find at least one result for XPath: {}",
+            xpath_str
+        );
+        assert_eq!(
+            results[0], "NOT_AVAILABLE",
+            "Mismatch in expected text content for XPath: {}",
+            xpath_str
+        );
     }
 }
