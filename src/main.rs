@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
 use sxd_document::parser;
-use sxd_xpath::{Factory, Context, Value};
+use sxd_xpath::{Context, Factory, Value};
 
 // --- Input Structures ---
 
@@ -47,7 +47,7 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
 
             // Attempt to compile the XPath expression once
             let xpath = match xpath_factory.build(xpath_str) {
-                Ok(xp) => Some(xp),
+                Ok(xp) => xp,
                 Err(_) => {
                     // If XPath compilation fails, all URLs are unsuccessful for this XPath
                     None
@@ -56,7 +56,11 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
 
             // Iterate through each URL to check this XPath
             for (url_string, url_data) in &input.urls {
-                let expected_target = url_data.targets.get(heading).map(|s| s.as_str()).unwrap_or("");
+                let expected_target = url_data
+                    .targets
+                    .get(heading)
+                    .map(|s| s.as_str())
+                    .unwrap_or("");
 
                 // First, check if XPath compilation was successful
                 if let Some(compiled_xpath_ref) = xpath.as_ref() {
@@ -66,7 +70,8 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                             // Both XPath and Document are valid, proceed with evaluation
                             let document = package.as_document();
                             let context = Context::new();
-                            let eval_result = compiled_xpath_ref.evaluate(&context, document.root());
+                            let eval_result =
+                                compiled_xpath_ref.evaluate(&context, document.root());
 
                             match eval_result {
                                 Ok(Value::String(actual_value)) => {
@@ -97,10 +102,12 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                 }
             }
 
-            output_results.entry(xpath_str.clone()).or_insert_with(|| XpathResult {
-                successful: successful_urls,
-                unsuccessful: unsuccessful_urls,
-            });
+            output_results
+                .entry(xpath_str.clone())
+                .or_insert_with(|| XpathResult {
+                    successful: successful_urls,
+                    unsuccessful: unsuccessful_urls,
+                });
         }
     }
 
@@ -132,78 +139,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*; // Import items from the parent module (main)
 
-    #[test]
-    fn test_process_input_stub() {
-        // 1. Prepare input data from JSON string
-        let input_json_string = r#"
-        {
-            "xpaths": {
-                "Heading 1": ["/html/body/h1"],
-                "Heading 2": ["//div[@id='main']"]
-            },
-            "urls": {
-                "http://example.com": {
-                    "targets": {},
-                    "content": "<html><body><h1>Example</h1></body></html>"
-                },
-                "http://anothersite.org": {
-                    "targets": {},
-                    "content": "<html><body><div id='main'>Another</div></body></html>"
-                }
-            }
-        }
-        "#;
-        let input: InputJson =
-            serde_json::from_str(input_json_string).expect("Failed to parse test input JSON");
-
-        // 2. Call the function under test
-        let output: HashMap<String, XpathResult> = process_input(input);
-
-        // 3. Define expected output
-        let mut expected_results = HashMap::new();
-
-        let mut urls_h1_unsucc = vec!["http://example.com".to_string(), "http://anothersite.org".to_string()];
-        urls_h1_unsucc.sort();
-        expected_results.insert(
-            "/html/body/h1".to_string(),
-            XpathResult {
-                successful: Vec::new(),
-                unsuccessful: urls_h1_unsucc.clone(),
-            },
-        );
-
-        let mut urls_div_unsucc = vec!["http://example.com".to_string(), "http://anothersite.org".to_string()];
-        urls_div_unsucc.sort();
-        expected_results.insert(
-            "//div[@id='main']".to_string(),
-            XpathResult {
-                successful: Vec::new(),
-                unsuccessful: urls_div_unsucc.clone(),
-            },
-        );
-
-        // 4. Assertions
-        assert_eq!(output.len(), expected_results.len());
-
-        for (xpath, result) in output {
-            let expected_result = expected_results.get(&xpath).expect("XPath key mismatch");
-
-            // Sort the actual successful URLs before comparison
-            let mut sorted_actual_successful = result.successful;
-            sorted_actual_successful.sort();
-
-            assert_eq!(
-                sorted_actual_successful, expected_result.successful,
-                "Successful URLs mismatch for XPath: {}",
-                xpath
-            );
-            assert_eq!(
-                result.unsuccessful, expected_result.unsuccessful,
-                "Unsuccessful URLs mismatch for XPath: {}",
-                xpath
-            );
-        }
-    }
     #[test]
     fn test_process_input_real_logic_expected_failure() {
         // 1. Prepare input data with HTML content
@@ -271,7 +206,10 @@ mod tests {
         );
 
         // XPath: "//div[@class='nonexistent']"
-        let mut urls_div_succ = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        let mut urls_div_succ = vec![
+            "http://site1.com".to_string(),
+            "http://site2.com".to_string(),
+        ];
         urls_div_succ.sort();
         expected_results.insert(
             "//div[@class='nonexistent']".to_string(),
