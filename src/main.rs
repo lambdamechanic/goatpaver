@@ -348,11 +348,18 @@ mod tests {
         let input: InputJson = serde_json::from_str(&json_content)
             .expect("Failed to parse ./test.json into InputJson struct.");
 
-        // 3. Process the input and assert no errors occurred during processing
-        let _ = process_input(input)
+        // 3. Process the input
+        let result = process_input(input)
             .await
             .expect("process_input failed when running with content from ./test.json");
 
-        // If we reach here, parsing and processing were successful.
+        // 4. Print the result for inspection
+        println!("--- Output from process_input with test.json ---");
+        dbg!(&result);
+        println!("------------------------------------------------");
+
+
+        // 5. Deliberately fail the test to show the output
+        panic!("Deliberately failing test_parse_and_process_test_json to show output.");
     }
 }
