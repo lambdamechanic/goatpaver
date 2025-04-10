@@ -19,11 +19,6 @@ struct UrlData {
 
 // --- Output Structures ---
 
-#[derive(Serialize, Debug)]
-struct OutputJson {
-    #[serde(flatten)]
-    results: HashMap<String, XpathResult>,
-}
 
 #[derive(Serialize, Debug)]
 struct XpathResult {
@@ -31,7 +26,7 @@ struct XpathResult {
     unsuccessful: Vec<String>,
 }
 
-fn process_input(input: InputJson) -> OutputJson {
+fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
     // 3. Extract URLs (Moved from main)
     let all_urls: Vec<String> = input.urls.keys().cloned().collect();
 
@@ -46,9 +41,7 @@ fn process_input(input: InputJson) -> OutputJson {
         output_results.insert(xpath.clone(), result); // Clone xpath here
     }
 
-    OutputJson {
-        results: output_results,
-    }
+    output_results
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -60,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input: InputJson = serde_json::from_str(&buffer)?;
 
     // --- Call the processing function ---
-    let output = process_input(input);
+    let output: HashMap<String, XpathResult> = process_input(input);
     // --- End call ---
 
     // 5. Serialize output
@@ -95,7 +88,7 @@ mod tests {
             .expect("Failed to parse test input JSON");
 
         // 2. Call the function under test
-        let output = process_input(input);
+        let output: HashMap<String, XpathResult> = process_input(input);
 
         // 3. Define expected output
         let expected_urls = vec!["http://anothersite.org".to_string(), "http://example.com".to_string()];
@@ -120,9 +113,9 @@ mod tests {
         );
 
         // 4. Assertions
-        assert_eq!(output.results.len(), expected_results.len());
+        assert_eq!(output.len(), expected_results.len());
 
-        for (xpath, result) in output.results {
+        for (xpath, result) in output {
             let expected_result = expected_results.get(&xpath).expect("XPath key mismatch");
 
             // Sort the actual successful URLs before comparison
