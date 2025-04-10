@@ -13,7 +13,7 @@ async_nursery = "0.6.0"
 async_executors = { version = "0.7", features = ["async_std"] }
 async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
-html5ever = "0.26"
-markup5ever_rcdom = { version = "0.2", features = ["html5ever-v0_26"] }
+html5ever = { version = "0.26", features = ["rcdom"] }
+markup5ever_rcdom = "0.2"
 # --- End added dependencies ---
 jsonschema = "0.17"
