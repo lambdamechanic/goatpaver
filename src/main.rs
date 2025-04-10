@@ -449,9 +449,9 @@ mod tests {
         for item in item_set.iter() {
             // item is &XpathItem<'_>
             // Since the XPath ends with /text(), we expect Node items containing text nodes.
-            if let node = item.extract_as_node() {
+            let node = item.extract_as_node();
                 // node is &Node<'_>
-                if let tree_node = node.extract_as_tree_node() {
+                let tree_node = node.extract_as_tree_node();
                     // tree_node is &XpathItemTreeNode<'_>
                     // For a text node selected by /text(), .text() should return its content.
                     if let Some(text_content) = tree_node.text(&xpath_item_tree) {
