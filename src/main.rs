@@ -34,32 +34,31 @@ struct XpathResult {
 async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let input = Arc::new(input);
     let mut output_results = HashMap::new();
-    let xpath_factory = Factory::new();
+    let xpath_factory = Arc::new(Factory::new());
 
     for (heading, xpath_list) in &input.xpaths {
         for xpath_str in xpath_list {
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            // Build returns Result<Option<XPath>, Error>. Handle the Option.
-            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory // Type annotation expects sxd_xpath::Error
-                .build(xpath_str)
-                .map_err(sxd_xpath::Error::from) // Convert ParserError to sxd_xpath::Error first
-                .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath)) // Now ok_or works with sxd_xpath::Error
-                .map(Arc::new); // Wrap the XPath in Arc if successful
+            let (nursery, mut output_stream) = Nursery::new(AsyncStd);
 
-            match compiled_xpath_result {
-                Ok(compiled_xpath_arc) => {
-                    let (nursery, mut output_stream) = Nursery::new(AsyncStd);
-
-                    for url_string in input.urls.keys() {
-                        let input_arc_clone = Arc::clone(&input);
-                        let compiled_xpath_arc_clone: Arc<XPath> = Arc::clone(&compiled_xpath_arc);
-                        let url_string_clone = url_string.clone();
-                        let heading_clone = heading.clone();
+            for url_string in input.urls.keys() {
+                let input_arc_clone = Arc::clone(&input);
+                let url_string_clone = url_string.clone();
+                let heading_clone = heading.clone();
+                let xpath_str_clone = xpath_str.clone();
+                let factory_clone = Arc::clone(&xpath_factory);
 
                         nursery.nurse(async move {
                             let task_result: Result<bool, String> = (|| {
+                                // Compile XPath inside the task
+                                let compiled_xpath = factory_clone
+                                    .build(&xpath_str_clone)
+                                    .map_err(sxd_xpath::Error::from)
+                                    .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath))
+                                    .map_err(|e| format!("XPath compilation failed: {}", e))?;
+
                                 let url_data = input_arc_clone.urls.get(&url_string_clone)
                                     .ok_or_else(|| "Internal error: URL data not found".to_string())?;
 
@@ -72,7 +71,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 let document = package.as_document();
                                 let context = Context::new();
 
-                                let eval_result = compiled_xpath_arc_clone.evaluate(&context, document.root())
+                                let eval_result = compiled_xpath.evaluate(&context, document.root())
                                     .map_err(|e| format!("XPath evaluation failed: {}", e))?;
 
                                 let is_match = match eval_result {
@@ -107,14 +106,6 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                             }
                         }
                     } // Panics in spawned tasks are implicitly handled by nursery/executor (may panic main thread or be ignored)
-                }
-                Err(e) => {
-                    eprintln!("XPath compilation failed for '{}': {}", xpath_str, e);
-                    for url_string in input.urls.keys() {
-                        unsuccessful_urls.push(url_string.clone());
-                    }
-                }
-            }
 
             output_results
                 .entry(xpath_str.clone())
