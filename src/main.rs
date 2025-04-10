@@ -13,12 +13,11 @@ struct InputJson {
 #[derive(Deserialize, Debug)]
 struct UrlData {
     // We don't need targets for the stub
-    // targets: HashMap<String, String>,
+    targets: HashMap<String, String>,
     content: String,
 }
 
 // --- Output Structures ---
-
 
 #[derive(Serialize, Debug)]
 struct XpathResult {
@@ -84,14 +83,17 @@ mod tests {
             }
         }
         "#;
-        let input: InputJson = serde_json::from_str(input_json_string)
-            .expect("Failed to parse test input JSON");
+        let input: InputJson =
+            serde_json::from_str(input_json_string).expect("Failed to parse test input JSON");
 
         // 2. Call the function under test
         let output: HashMap<String, XpathResult> = process_input(input);
 
         // 3. Define expected output
-        let expected_urls = vec!["http://anothersite.org".to_string(), "http://example.com".to_string()];
+        let expected_urls = vec![
+            "http://anothersite.org".to_string(),
+            "http://example.com".to_string(),
+        ];
         // Sort the URLs because HashMap iteration order is not guaranteed
         let mut sorted_expected_urls = expected_urls;
         sorted_expected_urls.sort();
@@ -122,10 +124,18 @@ mod tests {
             let mut sorted_actual_successful = result.successful;
             sorted_actual_successful.sort();
 
-            assert_eq!(sorted_actual_successful, expected_result.successful, "Successful URLs mismatch for XPath: {}", xpath);
-            assert_eq!(result.unsuccessful, expected_result.unsuccessful, "Unsuccessful URLs mismatch for XPath: {}", xpath);
+            assert_eq!(
+                sorted_actual_successful, expected_result.successful,
+                "Successful URLs mismatch for XPath: {}",
+                xpath
+            );
+            assert_eq!(
+                result.unsuccessful, expected_result.unsuccessful,
+                "Unsuccessful URLs mismatch for XPath: {}",
+                xpath
+            );
         }
-
+    }
     #[test]
     fn test_process_input_real_logic_expected_failure() {
         // 1. Prepare input data with HTML content
@@ -144,8 +154,8 @@ mod tests {
             }
         }
         "#;
-        let input: InputJson = serde_json::from_str(input_json_string)
-            .expect("Failed to parse test input JSON");
+        let input: InputJson =
+            serde_json::from_str(input_json_string).expect("Failed to parse test input JSON");
 
         // 2. Call the function under test
         let output: HashMap<String, XpathResult> = process_input(input);
@@ -154,7 +164,10 @@ mod tests {
         let mut expected_results = HashMap::new();
 
         // XPath: "/html/body/p" - Should match both
-        let mut urls_p = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        let mut urls_p = vec![
+            "http://site1.com".to_string(),
+            "http://site2.com".to_string(),
+        ];
         urls_p.sort();
         expected_results.insert(
             "/html/body/p".to_string(),
@@ -178,7 +191,10 @@ mod tests {
         );
 
         // XPath: "//div[@class='nonexistent']" - Should match none
-        let mut urls_div_unsucc = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        let mut urls_div_unsucc = vec![
+            "http://site1.com".to_string(),
+            "http://site2.com".to_string(),
+        ];
         urls_div_unsucc.sort();
         expected_results.insert(
             "//div[@class='nonexistent']".to_string(),
@@ -189,10 +205,15 @@ mod tests {
         );
 
         // 4. Assertions (These are expected to fail with the current stub implementation)
-        assert_eq!(output.len(), expected_results.len(), "Number of XPaths in output mismatch");
+        assert_eq!(
+            output.len(),
+            expected_results.len(),
+            "Number of XPaths in output mismatch"
+        );
 
         for (xpath, result) in output {
-            let expected_result = expected_results.get(&xpath)
+            let expected_result = expected_results
+                .get(&xpath)
                 .expect(&format!("Unexpected XPath key in output: {}", xpath));
 
             // Sort actual results for comparison
@@ -202,9 +223,16 @@ mod tests {
             sorted_actual_unsuccessful.sort();
 
             // Compare sorted lists
-            assert_eq!(sorted_actual_successful, expected_result.successful, "Successful URLs mismatch for XPath: {}", xpath);
-            assert_eq!(sorted_actual_unsuccessful, expected_result.unsuccessful, "Unsuccessful URLs mismatch for XPath: {}", xpath);
+            assert_eq!(
+                sorted_actual_successful, expected_result.successful,
+                "Successful URLs mismatch for XPath: {}",
+                xpath
+            );
+            assert_eq!(
+                sorted_actual_unsuccessful, expected_result.unsuccessful,
+                "Unsuccessful URLs mismatch for XPath: {}",
+                xpath
+            );
         }
     }
-}
 }
