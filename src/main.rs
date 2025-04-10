@@ -41,7 +41,11 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory.build(xpath_str).map(Arc::new).map_err(Into::into);
+            // Build returns Result<Option<XPath>, Error>. Handle the Option.
+            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory
+                .build(xpath_str)
+                .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath)) // Treat None as an error
+                .map(Arc::new); // Wrap the XPath in Arc if successful
 
             match compiled_xpath_result {
                 Ok(compiled_xpath_arc) => {
@@ -91,23 +95,17 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
 
                     drop(nursery);
 
-                    while let Some(task_join_result) = output_stream.next().await {
-                        match task_join_result {
-                            Ok((url, comparison_result)) => {
-                                match comparison_result {
-                                    Ok(true) => successful_urls.push(url),
-                                    Ok(false) => unsuccessful_urls.push(url),
-                                    Err(e) => {
-                                        eprintln!("Error processing URL '{}' for XPath '{}': {}", url, xpath_str, e);
-                                        unsuccessful_urls.push(url);
-                                    }
-                                }
-                            }
-                            Err(join_error) => {
-                                eprintln!("Task panicked or was cancelled for XPath '{}': {:?}", xpath_str, join_error);
+                    // The stream yields the task's return value directly: (String, Result<bool, String>)
+                    while let Some((url, comparison_result)) = output_stream.next().await {
+                        match comparison_result {
+                            Ok(true) => successful_urls.push(url),
+                            Ok(false) => unsuccessful_urls.push(url),
+                            Err(e) => {
+                                eprintln!("Error processing URL '{}' for XPath '{}': {}", url, xpath_str, e);
+                                unsuccessful_urls.push(url); // Add to unsuccessful if the inner task failed
                             }
                         }
-                    }
+                    } // Panics in spawned tasks are implicitly handled by nursery/executor (may panic main thread or be ignored)
                 }
                 Err(e) => {
                     eprintln!("XPath compilation failed for '{}': {}", xpath_str, e);
