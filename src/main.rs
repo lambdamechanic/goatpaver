@@ -277,51 +277,35 @@ mod tests {
             .await
             .expect("Processing failed in test");
 
-        // 3. Define expected output (based on real logic, not the stub)
-        let mut expected_results = HashMap::new();
-
-        // XPath: "/html/body/p" - Should match both
-        let mut urls_p = vec![
-            "http://site1.com".to_string(),
-            "http://site2.com".to_string(),
-        ];
-        urls_p.sort();
-        expected_results.insert(
-            "/html/body/p".to_string(),
-            XpathResult {
-                successful: urls_p,
-                unsuccessful: Vec::new(),
+        // 3. Define expected output as a JSON string
+        let expected_json_string = r#"
+        {
+            "/html/body/p": {
+                "successful": ["http://site1.com", "http://site2.com"],
+                "unsuccessful": []
             },
-        );
-
-        // XPath: "//a[@id='link1']"
-        let mut urls_a_succ = vec!["http://site1.com".to_string()];
-        urls_a_succ.sort();
-        let mut urls_a_unsucc = vec!["http://site2.com".to_string()];
-        urls_a_unsucc.sort();
-        expected_results.insert(
-            "//a[@id='link1']".to_string(),
-            XpathResult {
-                successful: urls_a_succ,
-                unsuccessful: urls_a_unsucc,
+            "//a[@id='link1']": {
+                "successful": ["http://site1.com"],
+                "unsuccessful": ["http://site2.com"]
             },
-        );
+            "//div[@class='nonexistent']": {
+                "successful": [],
+                "unsuccessful": ["http://site1.com", "http://site2.com"]
+            }
+        }
+        "#;
+        let mut expected_results: HashMap<String, XpathResult> =
+            serde_json::from_str(expected_json_string)
+                .expect("Failed to parse expected results JSON");
 
-        // XPath: "//div[@class='nonexistent']"
-        let mut urls_div_unsucc = vec![
-            "http://site1.com".to_string(),
-            "http://site2.com".to_string(),
-        ];
-        urls_div_unsucc.sort();
-        expected_results.insert(
-            "//div[@class='nonexistent']".to_string(),
-            XpathResult {
-                unsuccessful: urls_div_unsucc,
-                successful: Vec::new(),
-            },
-        );
+        // Sort the vectors within the expected results for consistent comparison
+        for result in expected_results.values_mut() {
+            result.successful.sort();
+            result.unsuccessful.sort();
+        }
 
-        // 4. Assertions (These are expected to fail with the current stub implementation)
+
+        // 4. Assertions
         assert_eq!(
             output.len(),
             expected_results.len(),
