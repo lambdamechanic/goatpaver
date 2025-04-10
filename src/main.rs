@@ -72,6 +72,10 @@ async fn process_input(
                             let maybe_expected_target = url_data.targets.get(&heading_clone);
                             if maybe_expected_target.is_none() {
                                 // No target specified, consider it a non-match for this URL/XPath pair
+                                eprintln!(
+                                    "[{}] No target found for heading '{}' in URL '{}'",
+                                    xpath_str_clone, heading_clone, url_string_clone
+                                );
                                 return Ok(false);
                             }
                             let expected_target = maybe_expected_target.unwrap(); // Safe to unwrap here
@@ -91,6 +95,10 @@ async fn process_input(
                             // Extract text content from the result (assuming we want the first node's text)
                             let actual_value: String = if item_set.is_empty() {
                                 // Explicitly type actual_value
+                                eprintln!(
+                                    "[{}] XPath found no matching nodes in URL '{}'",
+                                    xpath_str_clone, url_string_clone
+                                );
                                 "".to_string() // No match found
                             } else {
                                 // Attempt to get text from the first item in the set
@@ -104,6 +112,12 @@ async fn process_input(
 
                             // Compare with the expected target
                             let is_match = actual_value == *expected_target;
+                            if !is_match {
+                                eprintln!(
+                                    "[{}] Mismatch in URL '{}': Expected '{}', Found '{}'",
+                                    xpath_str_clone, url_string_clone, expected_target, actual_value
+                                );
+                            }
                             Ok(is_match)
                         })();
 
