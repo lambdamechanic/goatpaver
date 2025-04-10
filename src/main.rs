@@ -28,6 +28,9 @@ struct XpathResult {
 }
 
 fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
+    // DEBUG: Print input structure at the start of processing
+    eprintln!("DEBUG: process_input received input:\n{:#?}", input);
+
     // Pre-parse all HTML documents
     let packages: HashMap<String, Result<sxd_document::Package, _>> = input
         .urls
@@ -110,6 +113,9 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                 });
         }
     }
+
+    // DEBUG: Print the final results map before returning
+    eprintln!("DEBUG: process_input returning results:\n{:#?}", output_results);
 
     output_results
 }
