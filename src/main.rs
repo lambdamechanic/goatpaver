@@ -6,7 +6,7 @@ use std::io::{self, Read};
 
 #[derive(Deserialize, Debug)]
 struct InputJson {
-    xpaths: Vec<String>,
+    xpaths: HashMap<String, Vec<String>>,
     urls: HashMap<String, UrlData>,
 }
 
@@ -31,13 +31,17 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
 
     // 4. Build output structure (Moved from main)
     let mut output_results = HashMap::new();
-    for xpath in input.xpaths {
-        let result = XpathResult {
-            // Stub: All URLs are successful for every XPath
-            successful: all_urls.clone(),
-            unsuccessful: Vec::new(), // Empty unsuccessful list
-        };
-        output_results.insert(xpath.clone(), result); // Clone xpath here
+    // Iterate through headings and their associated XPath lists
+    for (_heading, xpath_list) in input.xpaths {
+        // Iterate through individual XPaths in the list
+        for xpath in xpath_list {
+            let result = XpathResult {
+                // Stub: All URLs are successful for every XPath
+                successful: all_urls.clone(),
+                unsuccessful: Vec::new(), // Empty unsuccessful list
+            };
+            output_results.insert(xpath.clone(), result); // Use individual xpath as key
+        }
     }
 
     output_results
@@ -73,10 +77,10 @@ mod tests {
         // 1. Prepare input data from JSON string
         let input_json_string = r#"
         {
-            "xpaths": [
-                "/html/body/h1",
-                "//div[@id='main']"
-            ],
+            "xpaths": {
+                "Heading 1": ["/html/body/h1"],
+                "Heading 2": ["//div[@id='main']"]
+            },
             "urls": {
                 "http://example.com": {
                     "targets": {},
@@ -147,9 +151,11 @@ mod tests {
         // 1. Prepare input data with HTML content
         let input_json_string = r#"
         {
-            "xpaths": [
-                "/html/body/p", "//a[@id='link1']", "//div[@class='nonexistent']"
-            ],
+            "xpaths": {
+                "Content Selectors": ["/html/body/p"],
+                "Link Selectors": ["//a[@id='link1']"],
+                "Nonexistent Selectors": ["//div[@class='nonexistent']"]
+            },
             "urls": {
                 "http://site1.com": {
                     "targets": {},
