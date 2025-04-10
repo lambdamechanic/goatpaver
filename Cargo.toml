@@ -10,7 +10,7 @@ sxd-document = "0.3"
 sxd-xpath = "0.4"
 # --- Added dependencies ---
 async_nursery = "0.6.0"
-async_executors = { version = "0.7.0" }
+async_executors = { version = "0.7.0", features = ["async-std"] }
 async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
 # --- End added dependencies ---

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 use sxd_document::parser;
-use sxd_xpath::{Context, Factory, Value, XPath};
-use async_nursery::{Nursery, NurseExt};
+use sxd_xpath::{Context, Factory, Value, XPath, BuildError};
+use async_nursery::Nursery;
 use async_executors::AsyncStd;
 use futures::StreamExt;
 
@@ -41,7 +41,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            let compiled_xpath_result: Result<Arc<XPath>, _> = xpath_factory.build(xpath_str).map(Arc::new);
+            let compiled_xpath_result: Result<Arc<XPath>, BuildError> = xpath_factory.build(xpath_str).map(Arc::new);
 
             match compiled_xpath_result {
                 Ok(compiled_xpath_arc) => {
@@ -73,7 +73,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 let is_match = match eval_result {
                                     Value::String(actual_value) => actual_value == *expected_target,
                                     Value::Nodeset(nodeset) => {
-                                        let actual_value = if nodeset.is_empty() {
+                                        let actual_value = if nodeset.size() == 0 {
                                             "".to_string()
                                         } else {
                                             nodeset.document_order_first().map_or("".to_string(), |n| n.string_value())
@@ -130,7 +130,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
 }
 
 #[async_std::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // 1. Read stdin
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer)?;
