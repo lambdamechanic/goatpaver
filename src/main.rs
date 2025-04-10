@@ -9,7 +9,7 @@ use async_executors::AsyncStd;
 use futures::StreamExt;
 use html5ever::parse_document;
 use html5ever::tendril::TendrilSink;
-use markup5ever_rcdom::RcDom;
+use markup5ever_rcdom::{RcDom, SerializableHandle};
 
 // --- Input Structures ---
 
@@ -77,7 +77,9 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
 
                                 // Serialize the RcDom back to a string
                                 let mut serialized_bytes = Vec::new();
-                                html5ever::serialize(&mut serialized_bytes, &rc_dom.document, Default::default())
+                                // Wrap the document handle for serialization
+                                let serializable_document: SerializableHandle = rc_dom.document.clone().into();
+                                html5ever::serialize(&mut serialized_bytes, &serializable_document, Default::default())
                                     .map_err(|e| format!("HTML serialization failed: {}", e))?;
                                 let serialized_html = String::from_utf8(serialized_bytes)
                                     .map_err(|e| format!("Serialized HTML is not valid UTF-8: {}", e))?;
