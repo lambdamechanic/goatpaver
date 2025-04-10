@@ -464,17 +464,8 @@ mod tests {
                             tree_node
                         );
                     }
-                } else {
-                    eprintln!(
-                        "Warning: Node could not be extracted as TreeNode: {:?}",
-                        node
-                    );
-                }
-            } else {
-                // Handle cases where the item is not a Node (e.g., XpathItem::Value),
-                // which shouldn't happen for this XPath.
-                eprintln!("Warning: XPath item was not a Node as expected: {:?}", item);
-            }
+                // Removed else for tree_node check as extract_as_tree_node always returns a TreeNode
+            // Removed else for node check as extract_as_node always returns a Node
         }
 
         // 10. Print the results
