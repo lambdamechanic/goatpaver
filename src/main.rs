@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
 use sxd_document::parser;
-use sxd_xpath::{evaluate_xpath, Factory, Context, Value};
+use sxd_xpath::{Factory, Context, Value};
 
 // --- Input Structures ---
 
@@ -58,8 +58,8 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
             for (url_string, url_data) in &input.urls {
                 let expected_target = url_data.targets.get(heading).map(|s| s.as_str()).unwrap_or("");
 
-                match (packages.get(url_string).unwrap(), &xpath) {
-                    (Ok(package), Some(compiled_xpath)) => {
+                match (packages.get(url_string).unwrap(), xpath) {
+                    (Ok(package), Some(ref compiled_xpath)) => {
                         let document = package.as_document();
                         let context = Context::new();
                         match compiled_xpath.evaluate(&context, document.root()) {
