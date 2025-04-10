@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 use sxd_document::parser;
-use sxd_xpath::{Context, Factory, Value, XPath, BuildError};
-use async_nursery::Nursery;
+use sxd_xpath::{Context, Factory, Value, XPath};
+use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
 use futures::StreamExt;
 
@@ -41,7 +41,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            let compiled_xpath_result: Result<Arc<XPath>, BuildError> = xpath_factory.build(xpath_str).map(Arc::new);
+            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory.build(xpath_str).map(Arc::new);
 
             match compiled_xpath_result {
                 Ok(compiled_xpath_arc) => {
@@ -49,7 +49,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
 
                     for url_string in input.urls.keys() {
                         let input_arc_clone = Arc::clone(&input);
-                        let compiled_xpath_arc_clone = Arc::clone(&compiled_xpath_arc);
+                        let compiled_xpath_arc_clone: Arc<XPath> = Arc::clone(&compiled_xpath_arc);
                         let url_string_clone = url_string.clone();
                         let heading_clone = heading.clone();
 
