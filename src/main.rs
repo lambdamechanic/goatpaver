@@ -87,9 +87,9 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     "".to_string() // No match found
                                 } else {
                                     // Attempt to get text from the first item in the set using and_then
-                                    item_set[0].extract_as_node() // Result<NodeItem, ExtractError>
-                                        .ok() // Option<NodeItem>
-                                        .and_then(|node_item| node_item.extract_as_tree_node().ok()) // Option<TreeNode>
+                                    item_set[0].extract_as_node() // Returns &Node<'_> according to compiler
+                                        .extract_as_tree_node() // Returns Result<TreeNode, ExtractError>
+                                        .ok() // Option<TreeNode>
                                         .and_then(|tree_node| tree_node.text(&xpath_item_tree)) // Option<String>
                                         .unwrap_or_default() // String (empty if any step failed or returned None)
                                 };
