@@ -83,18 +83,20 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     .map_err(|e| format!("XPath evaluation failed: {}", e))?;
 
                                 // Extract text content from the result (assuming we want the first node's text)
-                                let actual_value = if item_set.is_empty() {
+                                let actual_value: String = if item_set.is_empty() { // Explicitly type actual_value
                                     "".to_string() // No match found
                                 } else {
                                     // Attempt to get text from the first item in the set
                                     // Use nested match or map/and_then correctly on Result/Option
-                                    match item_set[0].extract_as_node() {
+                                    // Explicitly type the result of the match expression
+                                    let extracted_text: String = match item_set[0].extract_as_node() {
                                         Ok(node_item) => match node_item.extract_as_tree_node() {
                                             Ok(tree_node) => tree_node.text(&xpath_item_tree).unwrap_or_default(), // Use unwrap_or_default for Option<String>
                                             Err(_) => "".to_string(), // Failed to extract TreeNode
                                         },
                                         Err(_) => "".to_string(), // Failed to extract NodeItem
-                                    }
+                                    };
+                                    extracted_text // Return the result of the match
                                 };
 
                                 // Compare with the expected target
