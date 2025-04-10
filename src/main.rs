@@ -27,7 +27,7 @@ struct UrlData {
 
 // --- Output Structures ---
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)] // Added Deserialize
 struct XpathResult {
     successful: Vec<String>,
     unsuccessful: Vec<String>,
