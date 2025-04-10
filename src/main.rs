@@ -12,9 +12,9 @@ struct InputJson {
 
 #[derive(Deserialize, Debug)]
 struct UrlData {
-    // We don't need targets or content for the stub
+    // We don't need targets for the stub
     // targets: HashMap<String, String>,
-    // content: String,
+    content: String,
 }
 
 // --- Output Structures ---
@@ -125,5 +125,86 @@ mod tests {
             assert_eq!(sorted_actual_successful, expected_result.successful, "Successful URLs mismatch for XPath: {}", xpath);
             assert_eq!(result.unsuccessful, expected_result.unsuccessful, "Unsuccessful URLs mismatch for XPath: {}", xpath);
         }
+
+    #[test]
+    fn test_process_input_real_logic_expected_failure() {
+        // 1. Prepare input data with HTML content
+        let input_json_string = r#"
+        {
+            "xpaths": [
+                "/html/body/p", "//a[@id='link1']", "//div[@class='nonexistent']"
+            ],
+            "urls": {
+                "http://site1.com": {
+                    "content": "<html><body><p>Site 1 paragraph</p><a id='link1'>Link 1</a></body></html>"
+                },
+                "http://site2.com": {
+                    "content": "<html><body><p>Site 2 paragraph</p><b>No link here</b></body></html>"
+                }
+            }
+        }
+        "#;
+        let input: InputJson = serde_json::from_str(input_json_string)
+            .expect("Failed to parse test input JSON");
+
+        // 2. Call the function under test
+        let output: HashMap<String, XpathResult> = process_input(input);
+
+        // 3. Define expected output (based on real logic, not the stub)
+        let mut expected_results = HashMap::new();
+
+        // XPath: "/html/body/p" - Should match both
+        let mut urls_p = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        urls_p.sort();
+        expected_results.insert(
+            "/html/body/p".to_string(),
+            XpathResult {
+                successful: urls_p,
+                unsuccessful: Vec::new(),
+            },
+        );
+
+        // XPath: "//a[@id='link1']" - Should match site1 only
+        let mut urls_a_succ = vec!["http://site1.com".to_string()];
+        urls_a_succ.sort();
+        let mut urls_a_unsucc = vec!["http://site2.com".to_string()];
+        urls_a_unsucc.sort();
+        expected_results.insert(
+            "//a[@id='link1']".to_string(),
+            XpathResult {
+                successful: urls_a_succ,
+                unsuccessful: urls_a_unsucc,
+            },
+        );
+
+        // XPath: "//div[@class='nonexistent']" - Should match none
+        let mut urls_div_unsucc = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        urls_div_unsucc.sort();
+        expected_results.insert(
+            "//div[@class='nonexistent']".to_string(),
+            XpathResult {
+                successful: Vec::new(),
+                unsuccessful: urls_div_unsucc,
+            },
+        );
+
+        // 4. Assertions (These are expected to fail with the current stub implementation)
+        assert_eq!(output.len(), expected_results.len(), "Number of XPaths in output mismatch");
+
+        for (xpath, result) in output {
+            let expected_result = expected_results.get(&xpath)
+                .expect(&format!("Unexpected XPath key in output: {}", xpath));
+
+            // Sort actual results for comparison
+            let mut sorted_actual_successful = result.successful;
+            sorted_actual_successful.sort();
+            let mut sorted_actual_unsuccessful = result.unsuccessful;
+            sorted_actual_unsuccessful.sort();
+
+            // Compare sorted lists
+            assert_eq!(sorted_actual_successful, expected_result.successful, "Successful URLs mismatch for XPath: {}", xpath);
+            assert_eq!(sorted_actual_unsuccessful, expected_result.unsuccessful, "Unsuccessful URLs mismatch for XPath: {}", xpath);
+        }
     }
+}
 }
