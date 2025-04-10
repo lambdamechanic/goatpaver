@@ -447,18 +447,19 @@ mod tests {
         // 9. Extract text content from the result
         let mut results: Vec<String> = Vec::new();
         for item in item_set.iter() {
-            // The XPath targets text nodes directly
-            if let Some(text_node) = item.extract_as_text() {
-                results.push(text_node.text().to_string());
-            } else {
-                eprintln!("Warning: XPath item was not a text node as expected.");
-                // Optionally handle other node types if needed, e.g., get element text
-                if let Some(node) = item.extract_as_node() {
-                     if let Some(tree_node) = node.extract_as_tree_node() {
-                         if let Some(text) = tree_node.text(&xpath_item_tree) {
-                            results.push(text);
-                         }
-                     }
+            // Match on the XpathItem variant. Since the XPath ends with /text(),
+            // we expect XpathItem::Text.
+            match item {
+                xpath::grammar::data_model::XpathItem::Text(text_node) => {
+                    // text_node here is &TextNode<'a>
+                    results.push(text_node.text().to_string());
+                }
+                _ => {
+                    // This shouldn't happen with the given XPath, but good to handle defensively.
+                    eprintln!(
+                        "Warning: XPath item was not a text node as expected: {:?}",
+                        item
+                    );
                 }
             }
         }
