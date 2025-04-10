@@ -7,8 +7,8 @@ use async_nursery::{Nursery, NurseExt};
 use async_executors::AsyncStd;
 use futures::StreamExt;
 // Removed html5ever and markup5ever_rcdom imports
-use skyscraper::html; // Added skyscraper html import
-use skyscraper::xpath::{self, XpathItemTree}; // Added skyscraper xpath imports
+// Removed unused skyscraper::html import
+use skyscraper::xpath; // Simplified xpath import
 
 // --- Input Structures ---
 
@@ -55,7 +55,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                         nursery.nurse(async move {
                             let task_result: Result<bool, String> = (|| {
                                 // Parse XPath using skyscraper
-                                let xpath = skyscraper::xpath::parse(&xpath_str_clone)
+                                let xpath = xpath::parse(&xpath_str_clone) // Use simplified import
                                     .map_err(|e| format!("XPath parsing failed: {}", e))?;
 
                                 let url_data = input_arc_clone.urls.get(&url_string_clone)
@@ -76,7 +76,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     .map_err(|e| format!("HTML parsing failed: {}", e))?;
 
                                 // Create an item tree for XPath evaluation
-                                let xpath_item_tree = skyscraper::xpath::XpathItemTree::from(&document);
+                                let xpath_item_tree = xpath::XpathItemTree::from(&document); // Use simplified import
 
                                 // Apply the XPath expression
                                 let item_set = xpath.apply(&xpath_item_tree)
