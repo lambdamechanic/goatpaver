@@ -446,10 +446,13 @@ mod tests {
 
         // 9. Extract text content from the result
         let mut results: Vec<String> = Vec::new();
-        for item in item_set.iter() { // item is &XpathItem<'_>
+        for item in item_set.iter() {
+            // item is &XpathItem<'_>
             // Since the XPath ends with /text(), we expect Node items containing text nodes.
-            if let Some(node) = item.extract_as_node() { // node is &Node<'_>
-                if let Some(tree_node) = node.extract_as_tree_node() { // tree_node is &XpathItemTreeNode<'_>
+            if let node = item.extract_as_node() {
+                // node is &Node<'_>
+                if let tree_node = node.extract_as_tree_node() {
+                    // tree_node is &XpathItemTreeNode<'_>
                     // For a text node selected by /text(), .text() should return its content.
                     if let Some(text_content) = tree_node.text(&xpath_item_tree) {
                         results.push(text_content);
@@ -462,7 +465,10 @@ mod tests {
                         );
                     }
                 } else {
-                    eprintln!("Warning: Node could not be extracted as TreeNode: {:?}", node);
+                    eprintln!(
+                        "Warning: Node could not be extracted as TreeNode: {:?}",
+                        node
+                    );
                 }
             } else {
                 // Handle cases where the item is not a Node (e.g., XpathItem::Value),
