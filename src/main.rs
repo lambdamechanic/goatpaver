@@ -78,6 +78,7 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
 
                             match eval_result {
                                 Ok(Value::String(actual_value)) => {
+                                    // XPath result was explicitly a string
                                     if actual_value == expected_target {
                                         successful_urls.push(url_string.clone());
                                     } else {
@@ -85,13 +86,23 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                     }
                                 }
                                 Ok(Value::Nodeset(nodeset)) => {
-                                    if expected_target.is_empty() && nodeset.size() == 0 {
+                                    // XPath resulted in a nodeset (potentially empty)
+                                    let actual_value = if nodeset.is_empty() {
+                                        // Nodeset is empty
+                                        "".to_string()
+                                    } else {
+                                        // Get string value of the first node in document order
+                                        nodeset.document_order_first().map_or("".to_string(), |node| node.string_value())
+                                    };
+
+                                    if actual_value == expected_target {
                                         successful_urls.push(url_string.clone());
                                     } else {
                                         unsuccessful_urls.push(url_string.clone());
                                     }
                                 }
                                 Ok(_) | Err(_) => {
+                                    // Handles Boolean, Number, or an evaluation Error
                                     unsuccessful_urls.push(url_string.clone());
                                 }
                             }
