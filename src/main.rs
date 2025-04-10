@@ -93,7 +93,9 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                             "".to_string()
                                         } else {
                                             // Get string value of the first node in document order
-                                            nodeset.document_order_first().map_or("".to_string(), |node| node.string_value())
+                                            nodeset
+                                                .document_order_first()
+                                                .map_or("".to_string(), |node| node.string_value())
                                         };
 
                                         if actual_value == expected_target {
@@ -113,13 +115,19 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                             }
                             Err(_) => {
                                 // Document parsing failed
-                                eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.", xpath_str, url_string);
+                                eprintln!(
+                                    "DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.",
+                                    xpath_str, url_string
+                                );
                                 unsuccessful_urls.push(url_string.clone());
                             }
                         }
                     } else {
                         // XPath compilation failed
-                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.", xpath_str, url_string);
+                        eprintln!(
+                            "DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.",
+                            xpath_str, url_string
+                        );
                         unsuccessful_urls.push(url_string.clone());
                     }
                 } else {
@@ -139,7 +147,10 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
     }
 
     // DEBUG: Print the final results map before returning
-    eprintln!("DEBUG: process_input returning results:\n{:#?}", output_results);
+    eprintln!(
+        "DEBUG: process_input returning results:\n{:#?}",
+        output_results
+    );
 
     output_results
 }
@@ -183,16 +194,14 @@ mod tests {
                 "http://site1.com": {
                     "targets": {
                         "Content Selectors": "Site 1 paragraph",
-                        "Link Selectors": "Link 1",
-                        "Nonexistent Selectors": ""
+                        "Link Selectors": "Link 1"
                     },
                     "content": "<html><body><p>Site 1 paragraph</p><a id='link1'>Link 1</a></body></html>"
                 },
                 "http://site2.com": {
                     "targets": {
-                        "Content Selectors": "Site 2 paragraph",
-                        "Link Selectors": "",
-                        "Nonexistent Selectors": ""
+                        "Content Selectors": "Site 2 paragraph"
+
                     },
                     "content": "<html><body><p>Site 2 paragraph</p><b>No link here</b></body></html>"
                 }
@@ -236,16 +245,16 @@ mod tests {
         );
 
         // XPath: "//div[@class='nonexistent']"
-        let mut urls_div_succ = vec![
+        let mut urls_div_unsucc = vec![
             "http://site1.com".to_string(),
             "http://site2.com".to_string(),
         ];
-        urls_div_succ.sort();
+        urls_div_unsucc.sort();
         expected_results.insert(
             "//div[@class='nonexistent']".to_string(),
             XpathResult {
-                successful: urls_div_succ,
-                unsuccessful: Vec::new(),
+                unsuccessful: urls_div_unsucc,
+                successful: Vec::new(),
             },
         );
 
