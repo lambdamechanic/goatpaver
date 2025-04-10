@@ -41,7 +41,7 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory.build(xpath_str).map(Arc::new);
+            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory.build(xpath_str).map(Arc::new).map_err(Into::into);
 
             match compiled_xpath_result {
                 Ok(compiled_xpath_arc) => {
