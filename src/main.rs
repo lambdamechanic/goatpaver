@@ -80,8 +80,10 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                 Ok(Value::String(actual_value)) => {
                                     // XPath result was explicitly a string
                                     if actual_value == expected_target {
+                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                         successful_urls.push(url_string.clone());
                                     } else {
+                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] String match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                         unsuccessful_urls.push(url_string.clone());
                                     }
                                 }
@@ -96,22 +98,27 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
                                     };
 
                                     if actual_value == expected_target {
+                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match SUCCESS. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                         successful_urls.push(url_string.clone());
                                     } else {
+                                        eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Nodeset match FAILURE. Actual: '{}', Expected: '{}'", xpath_str, url_string, actual_value, expected_target);
                                         unsuccessful_urls.push(url_string.clone());
                                     }
                                 }
                                 Ok(_) | Err(_) => {
                                     // Handles Boolean, Number, or an evaluation Error
+                                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Evaluation FAILURE or unexpected type. Result: {:?}", xpath_str, url_string, eval_result);
                                     unsuccessful_urls.push(url_string.clone());
                                 }
                             }
                         }
                         Err(_) => {
+                            eprintln!("DEBUG: [XPath: '{}', URL: '{}'] Document parsing FAILURE.", xpath_str, url_string);
                             unsuccessful_urls.push(url_string.clone());
                         }
                     }
                 } else {
+                    eprintln!("DEBUG: [XPath: '{}', URL: '{}'] XPath compilation FAILURE.", xpath_str, url_string);
                     unsuccessful_urls.push(url_string.clone());
                 }
             }
