@@ -58,30 +58,37 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
             for (url_string, url_data) in &input.urls {
                 let expected_target = url_data.targets.get(heading).map(|s| s.as_str()).unwrap_or("");
 
-                match (packages.get(url_string).unwrap(), xpath) {
-                    (Ok(package), Some(ref compiled_xpath)) => {
-                        let document = package.as_document();
-                        let context = Context::new();
-                        match compiled_xpath.evaluate(&context, document.root()) {
-                            Ok(Value::String(actual_value)) => {
-                                if actual_value == expected_target {
-                                    successful_urls.push(url_string.clone());
-                                } else {
-                                    unsuccessful_urls.push(url_string.clone());
+                // First, check if XPath compilation was successful
+                if let Some(ref compiled_xpath) = xpath {
+                    // Second, check if the document parsing was successful for this URL
+                    match packages.get(url_string).unwrap() {
+                        Ok(package) => {
+                            // Both XPath and Document are valid, proceed with evaluation
+                            let document = package.as_document();
+                            let context = Context::new();
+                            match compiled_xpath.evaluate(&context, document.root()) {
+                                Ok(Value::String(actual_value)) => {
+                                    if actual_value == expected_target {
+                                        successful_urls.push(url_string.clone());
+                                    } else {
+                                        unsuccessful_urls.push(url_string.clone());
+                                    }
                                 }
-                            }
-                            Ok(_) | Err(_) => {
-                                if expected_target.is_empty() && matches!(compiled_xpath.evaluate(&context, document.root()), Ok(Value::Nodeset(nodeset)) if nodeset.size() == 0) {
-                                     successful_urls.push(url_string.clone());
-                                } else {
-                                     unsuccessful_urls.push(url_string.clone());
+                                Ok(_) | Err(_) => {
+                                    if expected_target.is_empty() && matches!(compiled_xpath.evaluate(&context, document.root()), Ok(Value::Nodeset(nodeset)) if nodeset.size() == 0) {
+                                        successful_urls.push(url_string.clone());
+                                    } else {
+                                        unsuccessful_urls.push(url_string.clone());
+                                    }
                                 }
                             }
                         }
+                        Err(_) => {
+                            unsuccessful_urls.push(url_string.clone());
+                        }
                     }
-                    (Err(_), _) | (_, None) => {
-                        unsuccessful_urls.push(url_string.clone());
-                    }
+                } else {
+                    unsuccessful_urls.push(url_string.clone());
                 }
             }
 
@@ -132,11 +139,11 @@ mod tests {
             "urls": {
                 "http://example.com": {
                     "targets": {},
-                    "content": ""
+                    "content": "<html><body><h1>Example</h1></body></html>"
                 },
                 "http://anothersite.org": {
                     "targets": {},
-                    "content": ""
+                    "content": "<html><body><div id='main'>Another</div></body></html>"
                 }
             }
         }
@@ -148,27 +155,25 @@ mod tests {
         let output: HashMap<String, XpathResult> = process_input(input);
 
         // 3. Define expected output
-        let expected_urls = vec![
-            "http://anothersite.org".to_string(),
-            "http://example.com".to_string(),
-        ];
-        // Sort the URLs because HashMap iteration order is not guaranteed
-        let mut sorted_expected_urls = expected_urls;
-        sorted_expected_urls.sort();
-
         let mut expected_results = HashMap::new();
+
+        let mut urls_h1_unsucc = vec!["http://example.com".to_string(), "http://anothersite.org".to_string()];
+        urls_h1_unsucc.sort();
         expected_results.insert(
             "/html/body/h1".to_string(),
             XpathResult {
-                successful: sorted_expected_urls.clone(), // Use sorted list
-                unsuccessful: Vec::new(),
+                successful: Vec::new(),
+                unsuccessful: urls_h1_unsucc.clone(),
             },
         );
+
+        let mut urls_div_unsucc = vec!["http://example.com".to_string(), "http://anothersite.org".to_string()];
+        urls_div_unsucc.sort();
         expected_results.insert(
             "//div[@id='main']".to_string(),
             XpathResult {
-                successful: sorted_expected_urls.clone(), // Use sorted list
-                unsuccessful: Vec::new(),
+                successful: Vec::new(),
+                unsuccessful: urls_div_unsucc.clone(),
             },
         );
 
@@ -247,7 +252,7 @@ mod tests {
             },
         );
 
-        // XPath: "//a[@id='link1']" - Should match site1 only
+        // XPath: "//a[@id='link1']"
         let mut urls_a_succ = vec!["http://site1.com".to_string()];
         urls_a_succ.sort();
         let mut urls_a_unsucc = vec!["http://site2.com".to_string()];
@@ -260,17 +265,14 @@ mod tests {
             },
         );
 
-        // XPath: "//div[@class='nonexistent']" - Should match none
-        let mut urls_div_unsucc = vec![
-            "http://site1.com".to_string(),
-            "http://site2.com".to_string(),
-        ];
-        urls_div_unsucc.sort();
+        // XPath: "//div[@class='nonexistent']"
+        let mut urls_div_succ = vec!["http://site1.com".to_string(), "http://site2.com".to_string()];
+        urls_div_succ.sort();
         expected_results.insert(
             "//div[@class='nonexistent']".to_string(),
             XpathResult {
-                successful: Vec::new(),
-                unsuccessful: urls_div_unsucc,
+                successful: urls_div_succ,
+                unsuccessful: Vec::new(),
             },
         );
 
