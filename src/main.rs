@@ -337,4 +337,22 @@ mod tests {
             );
         }
     }
+
+    #[async_std::test]
+    async fn test_parse_and_process_test_json() {
+        // 1. Read the test.json file
+        let json_content = fs::read_to_string("./test.json")
+            .expect("Failed to read ./test.json. Make sure the file exists in the project root.");
+
+        // 2. Parse the JSON content into InputJson
+        let input: InputJson = serde_json::from_str(&json_content)
+            .expect("Failed to parse ./test.json into InputJson struct.");
+
+        // 3. Process the input and assert no errors occurred during processing
+        let _ = process_input(input)
+            .await
+            .expect("process_input failed when running with content from ./test.json");
+
+        // If we reach here, parsing and processing were successful.
+    }
 }
