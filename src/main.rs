@@ -86,12 +86,12 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                 let actual_value: String = if item_set.is_empty() { // Explicitly type actual_value
                                     "".to_string() // No match found
                                 } else {
-                                    // Attempt to get text from the first item in the set using and_then
-                                    item_set[0].extract_as_node() // Returns &Node<'_> according to compiler
-                                        .extract_as_tree_node() // Returns Result<TreeNode, ExtractError>
-                                        .ok() // Option<TreeNode>
-                                        .and_then(|tree_node| tree_node.text(&xpath_item_tree)) // Option<String>
-                                        .unwrap_or_default() // String (empty if any step failed or returned None)
+                                    // Attempt to get text from the first item in the set
+                                    // Trusting compiler error: assuming extract_as_tree_node returns &XpathItemTreeNode
+                                    item_set[0].extract_as_node() // Assuming &Node<'_> based on prior errors/attempts
+                                        .extract_as_tree_node() // Assuming &XpathItemTreeNode<'_> based on current error E0599
+                                        .text(&xpath_item_tree) // Returns Option<String>
+                                        .unwrap_or_default() // Returns String
                                 };
 
                                 // Compare with the expected target
