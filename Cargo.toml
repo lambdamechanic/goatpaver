@@ -14,3 +14,4 @@ async_executors = { version = "0.7", features = ["async_std"] }
 async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
 # --- End added dependencies ---
+jsonschema = "0.17"

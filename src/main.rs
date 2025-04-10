@@ -144,6 +144,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 #[cfg(test)]
 mod tests {
     use super::*; // Import items from the parent module (main)
+    use jsonschema::JSONSchema;
+    use std::fs;
+
+    #[async_std::test]
+    async fn test_schema_validation() {
+        // Load schemas
+        let input_schema = fs::read_to_string("schemas/input.schema.json")
+            .expect("Failed to read input schema file");
+        let output_schema = fs::read_to_string("schemas/output.schema.json")
+            .expect("Failed to read output schema file");
+
+        // Parse schemas
+        let input_schema_value: serde_json::Value = serde_json::from_str(&input_schema)
+            .expect("Failed to parse input schema");
+        let output_schema_value: serde_json::Value = serde_json::from_str(&output_schema)
+            .expect("Failed to parse output schema");
+
+        // Compile schemas
+        let input_compiled = JSONSchema::compile(&input_schema_value)
+            .expect("Failed to compile input schema");
+        let output_compiled = JSONSchema::compile(&output_schema_value)
+            .expect("Failed to compile output schema");
+
+        // Test with valid input
+        let valid_input = r#"
+        {
+            "xpaths": {
+                "test": ["//test"]
+            },
+            "urls": {
+                "http://example.com": {
+                    "targets": {
+                        "test": "value"
+                    },
+                    "content": "<html></html>"
+                }
+            }
+        }
+        "#;
+        let input_value: serde_json::Value = serde_json::from_str(valid_input)
+            .expect("Failed to parse test input");
+        assert!(input_compiled.is_valid(&input_value));
+
+        // Test with invalid input (missing required fields)
+        let invalid_input = r#"{"xpaths": {}}"#;
+        let invalid_value: serde_json::Value = serde_json::from_str(invalid_input)
+            .expect("Failed to parse invalid input");
+        assert!(!input_compiled.is_valid(&invalid_value));
+
+        // Test output schema with valid output
+        let valid_output = r#"
+        {
+            "//test": {
+                "successful": ["http://example.com"],
+                "unsuccessful": []
+            }
+        }
+        "#;
+        let output_value: serde_json::Value = serde_json::from_str(valid_output)
+            .expect("Failed to parse test output");
+        assert!(output_compiled.is_valid(&output_value));
+    }
 
     #[async_std::test]
     async fn test_process_input_real_logic_expected_failure() {
