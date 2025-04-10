@@ -426,7 +426,7 @@ mod tests {
         let html_content = &url_data.content;
 
         // 4. Define the XPath expression
-        let xpath_str = "//js-Literal[@name='storename']/text()";
+        let xpath_str = "//js-drivencollect/text()"; // Updated XPath
 
         // 5. Parse HTML
         let document = skyscraper::html::parse(html_content)
@@ -480,8 +480,8 @@ mod tests {
         }
         println!("---------------------------------------------------------------------");
 
-        // Optional: Add assertions here if you know the expected output
-        assert!(!results.is_empty(), "Expected to find at least one result");
-        // assert_eq!(results[0], "Expected Store Name", "Mismatch in store name");
+        // Assert the expected output
+        assert!(!results.is_empty(), "Expected to find at least one result for XPath: {}", xpath_str);
+        assert_eq!(results[0], "NOT_AVAILABLE", "Mismatch in expected text content for XPath: {}", xpath_str);
     }
 }
