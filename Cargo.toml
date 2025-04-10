@@ -1,5 +1,5 @@
 [package]
-name = "xpath-checker"
+name = "goatpaver"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,8 +9,8 @@ serde_json = "1.0"
 sxd-document = "0.3"
 sxd-xpath = "0.4"
 # --- Added dependencies ---
-async-nursery = "0.6.0"
-async-executors = { version = "0.8", features = ["async-std"] }
-async-std = { version = "1", features = ["attributes", "rt"] }
+async_nursery = "0.6.0"
+async_executors = { version = "0.7.0" }
+async-std = { version = "1.13.1", features = ["attributes"] }
 futures = "0.3"
 # --- End added dependencies ---
