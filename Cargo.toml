@@ -8,3 +8,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sxd-document = "0.3"
 sxd-xpath = "0.4"
+# --- Added dependencies ---
+async-nursery = "0.6.0"
+async-executors = { version = "0.8", features = ["async-std"] }
+async-std = { version = "1", features = ["attributes", "rt"] }
+futures = "0.3"
+# --- End added dependencies ---
