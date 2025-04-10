@@ -91,8 +91,24 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
                                     .map_err(|e| format!("Serialized HTML is not valid UTF-8: {}", e))?;
 
                                 // Parse the serialized, hopefully cleaner, HTML with sxd_document
-                                let package = parser::parse(&serialized_html)
-                                    .map_err(|e| format!("XML parsing of serialized HTML failed: {}", e))?;
+                                let package = match parser::parse(&serialized_html) {
+                                    Ok(p) => p,
+                                    Err(e) => {
+                                        // Log the problematic HTML upon parsing failure
+                                        eprintln!(
+                                            "--- XML Parse Error Details ---\nURL: {}\nXPath: {}\nError: {}\n--- Problematic Serialized HTML (first 2000 chars) ---",
+                                            url_string_clone, xpath_str_clone, e
+                                        );
+                                        // Limit output size to avoid flooding logs
+                                        let limit = std::cmp::min(serialized_html.len(), 2000);
+                                        eprintln!("{}", &serialized_html[..limit]);
+                                        if serialized_html.len() > 2000 {
+                                            eprintln!("... (truncated)");
+                                        }
+                                        eprintln!("--- End Problematic HTML ---");
+                                        return Err(format!("XML parsing of serialized HTML failed: {}", e));
+                                    }
+                                };
                                 let document = package.as_document();
                                 let context = Context::new();
 
