@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Output Schema for XPath Processor",
+  "description": "Defines the structure for the output JSON produced by the application.",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/XpathResult"
+  },
+  "definitions": {
+    "XpathResult": {
+      "description": "Contains lists of URLs where a specific XPath succeeded or failed.",
+      "type": "object",
+      "properties": {
+        "successful": {
+          "description": "List of URLs where the XPath evaluation matched the target.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "unsuccessful": {
+          "description": "List of URLs where the XPath evaluation did not match the target or an error occurred.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "required": [
+        "successful",
+        "unsuccessful"
+      ]
+    }
+  }
+}

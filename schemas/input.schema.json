@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Input Schema for XPath Processor",
+  "description": "Defines the structure for the input JSON expected by the application.",
+  "type": "object",
+  "properties": {
+    "xpaths": {
+      "description": "A map where keys are descriptive headings and values are lists of XPath strings.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "An XPath expression string."
+        }
+      }
+    },
+    "urls": {
+      "description": "A map where keys are URLs and values contain the HTML content and expected target values.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/UrlData"
+      }
+    }
+  },
+  "required": [
+    "xpaths",
+    "urls"
+  ],
+  "definitions": {
+    "UrlData": {
+      "description": "Contains the HTML content and expected target values for a specific URL.",
+      "type": "object",
+      "properties": {
+        "targets": {
+          "description": "A map where keys match the headings in 'xpaths' and values are the expected string results for those XPaths.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "content": {
+          "description": "The HTML content of the page as a string.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "targets",
+        "content"
+      ]
+    }
+  }
+}
