@@ -158,11 +158,19 @@ mod tests {
             },
             "urls": {
                 "http://site1.com": {
-                    "targets": {},
+                    "targets": {
+                        "Content Selectors": "Site 1 paragraph",
+                        "Link Selectors": "Link 1",
+                        "Nonexistent Selectors": ""
+                    },
                     "content": "<html><body><p>Site 1 paragraph</p><a id='link1'>Link 1</a></body></html>"
                 },
                 "http://site2.com": {
-                    "targets": {},
+                    "targets": {
+                        "Content Selectors": "Site 2 paragraph",
+                        "Link Selectors": "",
+                        "Nonexistent Selectors": ""
+                    },
                     "content": "<html><body><p>Site 2 paragraph</p><b>No link here</b></body></html>"
                 }
             }
