@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{self, Read};
+use std::sync::Arc;
 use sxd_document::parser;
-use sxd_xpath::{Context, Factory, Value};
+use sxd_xpath::{Context, Factory, Value, XPath};
+use async_nursery::{Nursery, NurseExt};
+use async_executors::AsyncStd;
+use futures::StreamExt;
 
 // --- Input Structures ---
 
@@ -27,97 +31,89 @@ struct XpathResult {
     unsuccessful: Vec<String>,
 }
 
-fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
-
-    // Pre-parse all HTML documents
-    let packages: HashMap<String, Result<sxd_document::Package, _>> = input
-        .urls
-        .iter()
-        .map(|(url, url_data)| (url.clone(), parser::parse(&url_data.content)))
-        .collect();
-
+async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let input = Arc::new(input);
     let mut output_results = HashMap::new();
     let xpath_factory = Factory::new();
 
-    // Iterate through headings and their associated XPath lists
     for (heading, xpath_list) in &input.xpaths {
-        // Iterate through individual XPath strings in the list
         for xpath_str in xpath_list {
             let mut successful_urls = Vec::new();
             let mut unsuccessful_urls = Vec::new();
 
-            // Attempt to compile the XPath expression once
-            let xpath = match xpath_factory.build(xpath_str) {
-                Ok(xp) => xp,
-                Err(_) => {
-                    // If XPath compilation fails, all URLs are unsuccessful for this XPath
-                    None
-                }
-            };
+            let compiled_xpath_result: Result<Arc<XPath>, _> = xpath_factory.build(xpath_str).map(Arc::new);
 
-            // Iterate through each URL to check this XPath
-            for (url_string, url_data) in &input.urls {
-                // Check if a target exists for this heading and URL
-                if let Some(expected_target_str) = url_data.targets.get(heading) {
-                    // Target exists, proceed with evaluation
-                    let expected_target = expected_target_str.as_str(); // Convert &String to &str
+            match compiled_xpath_result {
+                Ok(compiled_xpath_arc) => {
+                    let (nursery, mut output_stream) = Nursery::new(AsyncStd);
 
-                    // First, check if XPath compilation was successful
-                    if let Some(compiled_xpath_ref) = xpath.as_ref() {
-                        // Second, check if the document parsing was successful for this URL
-                        match packages.get(url_string).unwrap() {
-                            Ok(package) => {
-                                // Both XPath and Document are valid, proceed with evaluation
+                    for url_string in input.urls.keys() {
+                        let input_arc_clone = Arc::clone(&input);
+                        let compiled_xpath_arc_clone = Arc::clone(&compiled_xpath_arc);
+                        let url_string_clone = url_string.clone();
+                        let heading_clone = heading.clone();
+
+                        nursery.nurse(async move {
+                            let task_result: Result<bool, String> = (|| {
+                                let url_data = input_arc_clone.urls.get(&url_string_clone)
+                                    .ok_or_else(|| "Internal error: URL data not found".to_string())?;
+
+                                let content_clone = url_data.content.clone();
+                                let expected_target = url_data.targets.get(&heading_clone)
+                                    .ok_or_else(|| "No target specified".to_string())?;
+
+                                let package = parser::parse(&content_clone)
+                                    .map_err(|e| format!("HTML parsing failed: {}", e))?;
                                 let document = package.as_document();
                                 let context = Context::new();
-                                let eval_result =
-                                    compiled_xpath_ref.evaluate(&context, document.root());
 
-                                match eval_result {
-                                    Ok(Value::String(actual_value)) => {
-                                        // XPath result was explicitly a string
-                                        if actual_value == expected_target {
-                                            successful_urls.push(url_string.clone());
-                                        } else {
-                                            unsuccessful_urls.push(url_string.clone());
-                                        }
-                                    }
-                                    Ok(Value::Nodeset(nodeset)) => {
-                                        // XPath resulted in a nodeset (potentially empty)
-                                        let actual_value = if nodeset.size() == 0 {
-                                            // Nodeset is empty
+                                let eval_result = compiled_xpath_arc_clone.evaluate(&context, document.root())
+                                    .map_err(|e| format!("XPath evaluation failed: {}", e))?;
+
+                                let is_match = match eval_result {
+                                    Value::String(actual_value) => actual_value == *expected_target,
+                                    Value::Nodeset(nodeset) => {
+                                        let actual_value = if nodeset.is_empty() {
                                             "".to_string()
                                         } else {
-                                            // Get string value of the first node in document order
-                                            nodeset
-                                                .document_order_first()
-                                                .map_or("".to_string(), |node| node.string_value())
+                                            nodeset.document_order_first().map_or("".to_string(), |n| n.string_value())
                                         };
-
-                                        if actual_value == expected_target {
-                                            successful_urls.push(url_string.clone());
-                                        } else {
-                                            unsuccessful_urls.push(url_string.clone());
-                                        }
+                                        actual_value == *expected_target
                                     }
-                                    Ok(_) | Err(_) => {
-                                        // Handles Boolean, Number, or an evaluation Error
-                                        unsuccessful_urls.push(url_string.clone());
+                                    _ => false,
+                                };
+                                Ok(is_match)
+                            })();
+
+                            (url_string_clone, task_result)
+                        }).expect("Failed to spawn task");
+                    }
+
+                    drop(nursery);
+
+                    while let Some(task_join_result) = output_stream.next().await {
+                        match task_join_result {
+                            Ok((url, comparison_result)) => {
+                                match comparison_result {
+                                    Ok(true) => successful_urls.push(url),
+                                    Ok(false) => unsuccessful_urls.push(url),
+                                    Err(e) => {
+                                        eprintln!("Error processing URL '{}' for XPath '{}': {}", url, xpath_str, e);
+                                        unsuccessful_urls.push(url);
                                     }
                                 }
                             }
-                            Err(_) => {
-                                // Document parsing failed
-                                unsuccessful_urls.push(url_string.clone());
+                            Err(join_error) => {
+                                eprintln!("Task panicked or was cancelled for XPath '{}': {:?}", xpath_str, join_error);
                             }
                         }
-                    } else {
-                        // XPath compilation failed
+                    }
+                }
+                Err(e) => {
+                    eprintln!("XPath compilation failed for '{}': {}", xpath_str, e);
+                    for url_string in input.urls.keys() {
                         unsuccessful_urls.push(url_string.clone());
                     }
-                } else {
-                    // No target specified for this heading/URL combination
-                    unsuccessful_urls.push(url_string.clone());
                 }
             }
 
@@ -130,11 +126,11 @@ fn process_input(input: InputJson) -> HashMap<String, XpathResult> {
         }
     }
 
-
-    output_results
+    Ok(output_results)
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Read stdin
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer)?;
@@ -143,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input: InputJson = serde_json::from_str(&buffer)?;
 
     // --- Call the processing function ---
-    let output: HashMap<String, XpathResult> = process_input(input);
+    let output: HashMap<String, XpathResult> = process_input(input).await?;
     // --- End call ---
 
     // 5. Serialize output
@@ -159,8 +155,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*; // Import items from the parent module (main)
 
-    #[test]
-    fn test_process_input_real_logic_expected_failure() {
+    #[async_std::test]
+    async fn test_process_input_real_logic_expected_failure() {
         // 1. Prepare input data with HTML content
         let input_json_string = r#"
         {
@@ -191,7 +187,9 @@ mod tests {
             serde_json::from_str(input_json_string).expect("Failed to parse test input JSON");
 
         // 2. Call the function under test
-        let output: HashMap<String, XpathResult> = process_input(input);
+        let output: HashMap<String, XpathResult> = process_input(input)
+            .await
+            .expect("Processing failed in test");
 
         // 3. Define expected output (based on real logic, not the stub)
         let mut expected_results = HashMap::new();
