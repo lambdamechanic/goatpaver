@@ -42,9 +42,10 @@ async fn process_input(input: InputJson) -> Result<HashMap<String, XpathResult>,
             let mut unsuccessful_urls = Vec::new();
 
             // Build returns Result<Option<XPath>, Error>. Handle the Option.
-            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory
+            let compiled_xpath_result: Result<Arc<XPath>, sxd_xpath::Error> = xpath_factory // Type annotation expects sxd_xpath::Error
                 .build(xpath_str)
-                .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath)) // Treat None as an error
+                .map_err(sxd_xpath::Error::from) // Convert ParserError to sxd_xpath::Error first
+                .and_then(|maybe_xpath| maybe_xpath.ok_or(sxd_xpath::Error::NoXPath)) // Now ok_or works with sxd_xpath::Error
                 .map(Arc::new); // Wrap the XPath in Arc if successful
 
             match compiled_xpath_result {
